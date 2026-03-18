@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.5](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.4...ai-sdk-v0.1.5) (2026-03-18)
+
+
+### Documentation
+
+* add real-world examples for all five patterns ([e1f14c1](https://github.com/daedalus-ai-dev/ai-sdk/commit/e1f14c15667008f8c721c995990a0bdc49ef79bb))
+* real-world examples for all five patterns ([40ac0de](https://github.com/daedalus-ai-dev/ai-sdk/commit/40ac0de8a13cf4c0cf8db58489b041a93af35730))
+
 ## [0.1.4](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.3...ai-sdk-v0.1.4) (2026-03-18)
 
 
