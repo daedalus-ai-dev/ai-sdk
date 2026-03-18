@@ -61,6 +61,21 @@ export type { OpenRouterOptions } from './providers/openrouter.js';
 export { vercelAI } from './providers/vercel.js';
 export type { VercelAIOptions } from './providers/vercel.js';
 
+export { openai } from './providers/openai.js';
+export type { OpenAIOptions } from './providers/openai.js';
+
+export { anthropic } from './providers/anthropic.js';
+export type { AnthropicOptions } from './providers/anthropic.js';
+
+export { google } from './providers/google.js';
+export type { GoogleOptions } from './providers/google.js';
+
+export { xai } from './providers/xai.js';
+export type { XAIOptions } from './providers/xai.js';
+
+export { createProvider } from './providers/factory.js';
+export type { BuiltInProvider, CreateProviderOptions } from './providers/factory.js';
+
 // ─── Built-in tools ───────────────────────────────────────────────────────────
 export { WebFetch } from './tools/web-fetch.js';
 

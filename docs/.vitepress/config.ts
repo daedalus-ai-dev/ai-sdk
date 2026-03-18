@@ -72,7 +72,14 @@ export default defineConfig({
         {
           text: 'Providers',
           items: [
-            { text: 'OpenRouter', link: '/api/openrouter' },
+            { text: 'openai()', link: '/api/openai' },
+            { text: 'anthropic()', link: '/api/anthropic' },
+            { text: 'google()', link: '/api/google' },
+            { text: 'xai()', link: '/api/xai' },
+            { text: 'openrouter()', link: '/api/openrouter' },
+            { text: 'vercelAI()', link: '/api/vercel' },
+            { text: 'Stripe', link: '/api/stripe' },
+            { text: 'createProvider()', link: '/api/create-provider' },
             { text: 'Custom Provider', link: '/api/custom-provider' },
           ],
         },
