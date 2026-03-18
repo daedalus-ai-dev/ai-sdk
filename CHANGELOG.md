@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.2](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.1...ai-sdk-v0.1.2) (2026-03-18)
+
+
+### Features
+
+* agent registry ([dfacd9e](https://github.com/daedalus-ai-dev/ai-sdk/commit/dfacd9e01ad8e7605f3a5951ffaddfe6e51d45e4))
+* agent registry ([#8](https://github.com/daedalus-ai-dev/ai-sdk/issues/8)) ([02d731f](https://github.com/daedalus-ai-dev/ai-sdk/commit/02d731fe65bee3cf29cdd34fd7f08cef78177910))
+
 ## [0.1.1](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.0...ai-sdk-v0.1.1) (2026-03-18)
 
 
