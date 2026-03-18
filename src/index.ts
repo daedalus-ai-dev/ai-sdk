@@ -46,6 +46,11 @@ export {
 // ─── Schema builder ───────────────────────────────────────────────────────────
 export { schema, buildSchema } from './schema.js';
 
+// ─── Context Window Management ────────────────────────────────────────────────
+export type { ContextManager } from './context-manager.js';
+export type { SummarizingOptions } from './context-manager.js';
+export { slidingWindow, tokenBudget, summarizing } from './context-manager.js';
+
 // ─── Prompt Templates ─────────────────────────────────────────────────────────
 export { promptTemplate, createPrompt } from './prompt-template.js';
 
