@@ -1,6 +1,6 @@
 {
   "name": "@daedalus-ai-dev/ai-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A TypeScript AI SDK for building agents, tools, and multi-agent workflows",
   "license": "MIT",
   "type": "module",

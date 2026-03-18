@@ -1,0 +1,20 @@
+# Changelog
+
+## [0.1.1](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.0...ai-sdk-v0.1.1) (2026-03-18)
+
+
+### Features
+
+* add MCP client support (consume external MCP servers as tools) ([d55472f](https://github.com/daedalus-ai-dev/ai-sdk/commit/d55472f3d134de3e58e91b8ea07c8dc2d28d6f19))
+* add openai, anthropic, google, xai providers and createProvider factory ([d0dd3d1](https://github.com/daedalus-ai-dev/ai-sdk/commit/d0dd3d111801d8333b1d9aa31ee7c8c0334a2737))
+* add Vercel AI SDK provider ([37c0b06](https://github.com/daedalus-ai-dev/ai-sdk/commit/37c0b06984875e436ed85d9f78e401c5d17c2d56))
+* initial TypeScript AI SDK implementation ([dca556f](https://github.com/daedalus-ai-dev/ai-sdk/commit/dca556fc594be7a121751f51c7d41a2c1c162e9b))
+
+
+### Documentation
+
+* add comprehensive VitePress documentation site ([b8d30e8](https://github.com/daedalus-ai-dev/ai-sdk/commit/b8d30e8f9090425dde926b3783dd3fcaf8c5acaa))
+* add MCP tools guide and API reference ([2b485f5](https://github.com/daedalus-ai-dev/ai-sdk/commit/2b485f5acac4e909c5059d16d7974782cc6bb1ba))
+* add MIT license, README, and CONTRIBUTING guide ([ac903b0](https://github.com/daedalus-ai-dev/ai-sdk/commit/ac903b05d1dd52aef3629dec91630879f9ea3c24))
+* fix site title in VitePress config to Daedalus AI SDK ([068f996](https://github.com/daedalus-ai-dev/ai-sdk/commit/068f996ac87398dcb6f9e2007bc25c1167f1774f))
+* rename Rokkhopper AI SDK → Daedalus AI SDK ([68dbcc0](https://github.com/daedalus-ai-dev/ai-sdk/commit/68dbcc0700bbbf0711c9d205842d9f24ffd042e9))
