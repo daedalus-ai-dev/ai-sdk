@@ -4,6 +4,31 @@
   "description": "A TypeScript AI SDK for building agents, tools, and multi-agent workflows",
   "license": "MIT",
   "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/daedalus-ai-dev/ai-sdk.git"
+  },
+  "homepage": "https://daedalus-ai-dev.github.io/ai-sdk/",
+  "bugs": {
+    "url": "https://github.com/daedalus-ai-dev/ai-sdk/issues"
+  },
+  "keywords": [
+    "ai",
+    "sdk",
+    "agents",
+    "llm",
+    "tools",
+    "mcp",
+    "openai",
+    "anthropic",
+    "google",
+    "multi-agent"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
