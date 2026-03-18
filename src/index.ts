@@ -58,6 +58,9 @@ export type { PipelineStep } from './pipeline.js';
 export { OpenRouterProvider, openrouter } from './providers/openrouter.js';
 export type { OpenRouterOptions } from './providers/openrouter.js';
 
+export { vercelAI } from './providers/vercel.js';
+export type { VercelAIOptions } from './providers/vercel.js';
+
 // ─── Built-in tools ───────────────────────────────────────────────────────────
 export { WebFetch } from './tools/web-fetch.js';
 
