@@ -4,3 +4,4 @@ dist/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
 *.js.map
+.gitnexus
