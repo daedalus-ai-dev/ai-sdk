@@ -46,6 +46,9 @@ export {
 // ─── Schema builder ───────────────────────────────────────────────────────────
 export { schema, buildSchema } from './schema.js';
 
+// ─── Prompt Templates ─────────────────────────────────────────────────────────
+export { promptTemplate, createPrompt } from './prompt-template.js';
+
 // ─── Tool ─────────────────────────────────────────────────────────────────────
 export type { Tool } from './tool.js';
 export { toolToDefinition, defineTool } from './tool.js';

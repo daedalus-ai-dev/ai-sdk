@@ -68,6 +68,7 @@ export default defineConfig({
             { text: 'Pipeline', link: '/api/pipeline' },
             { text: 'defineTool()', link: '/api/define-tool' },
             { text: 'buildSchema()', link: '/api/build-schema' },
+            { text: 'Prompt Templates', link: '/api/prompt-templates' },
           ],
         },
         {
