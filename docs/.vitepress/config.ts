@@ -62,6 +62,7 @@ export default defineConfig({
           text: 'API Reference',
           items: [
             { text: 'agent()', link: '/api/agent' },
+            { text: 'Agent Registry', link: '/api/registry' },
             { text: 'configure()', link: '/api/configure' },
             { text: 'runAgent()', link: '/api/run-agent' },
             { text: 'Pipeline', link: '/api/pipeline' },
