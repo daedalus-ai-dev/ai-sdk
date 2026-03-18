@@ -40,6 +40,7 @@ export default defineConfig({
             { text: 'Schema Builder', link: '/guide/schema' },
             { text: 'Providers', link: '/guide/providers' },
             { text: 'Streaming', link: '/guide/streaming' },
+            { text: 'MCP Tools', link: '/guide/mcp' },
           ],
         },
       ],
@@ -79,6 +80,12 @@ export default defineConfig({
           text: 'Built-in Tools',
           items: [
             { text: 'WebFetch', link: '/api/web-fetch' },
+          ],
+        },
+        {
+          text: 'MCP',
+          items: [
+            { text: 'connectMcp()', link: '/api/connect-mcp' },
           ],
         },
       ],
