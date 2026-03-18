@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.4](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.3...ai-sdk-v0.1.4) (2026-03-18)
+
+
+### Features
+
+* context window management ([92bee5c](https://github.com/daedalus-ai-dev/ai-sdk/commit/92bee5c8bdcffd1ba00ff25fb2793146511b7648))
+* context window management ([b4d3129](https://github.com/daedalus-ai-dev/ai-sdk/commit/b4d31298d7629b69d48f15775e81c205e2a811a3)), closes [#5](https://github.com/daedalus-ai-dev/ai-sdk/issues/5)
+
 ## [0.1.3](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.2...ai-sdk-v0.1.3) (2026-03-18)
 
 
