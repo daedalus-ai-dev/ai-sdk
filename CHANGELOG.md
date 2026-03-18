@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.6](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.5...ai-sdk-v0.1.6) (2026-03-18)
+
+
+### Documentation
+
+* add AI-driven development workflow example ([76ca828](https://github.com/daedalus-ai-dev/ai-sdk/commit/76ca82839e0ecb04d31a084d6e78a2e4909fe8e5))
+* add optional LSP integration to AI development workflow ([27e0a71](https://github.com/daedalus-ai-dev/ai-sdk/commit/27e0a7182dd8be9b90ce323ad49f405b33160648))
+* add Project Scaffolder as phase 0 of the dev workflow ([314d59e](https://github.com/daedalus-ai-dev/ai-sdk/commit/314d59ea871bd5959a2c50eb77c5519e7f5ae807))
+* complete SpecWriter agent integration in AI dev workflow example ([6cbcb05](https://github.com/daedalus-ai-dev/ai-sdk/commit/6cbcb05add5eaa21e1faacce5389467d08948123))
+* integrate GitNexus MCP + coding language into dev workflow example ([10d9eef](https://github.com/daedalus-ai-dev/ai-sdk/commit/10d9eef1fa4b7fc7919e6956ef126fc80e0aa94f))
+* real-world examples for all five patterns + AI development workflow ([da4740f](https://github.com/daedalus-ai-dev/ai-sdk/commit/da4740f27bc6c45cc9370381b766517c49d94f94))
+* rewrite AI development workflow as real multi-file project ([0ba8eab](https://github.com/daedalus-ai-dev/ai-sdk/commit/0ba8eab835c6e09650df0813c430394a862346ef))
+* scope AI workflow to explicit projectPath instead of process.cwd() ([2dd4a8d](https://github.com/daedalus-ai-dev/ai-sdk/commit/2dd4a8d12ac09257df83968913af0efb1b1e1f1a))
+
 ## [0.1.5](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.4...ai-sdk-v0.1.5) (2026-03-18)
 
 
