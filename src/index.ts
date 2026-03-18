@@ -79,6 +79,18 @@ export type { BuiltInProvider, CreateProviderOptions } from './providers/factory
 // ─── Built-in tools ───────────────────────────────────────────────────────────
 export { WebFetch } from './tools/web-fetch.js';
 
+// ─── Registry ─────────────────────────────────────────────────────────────────
+export {
+  registerAgent,
+  getAgent,
+  hasAgent,
+  listAgents,
+  unregisterAgent,
+  clearAgents,
+  agentTool,
+} from './registry.js';
+export type { AgentToolOptions } from './registry.js';
+
 // ─── MCP ──────────────────────────────────────────────────────────────────────
 export { connectMcp, McpConnection } from './mcp/index.js';
 export type { McpServerConfig, McpStdioConfig, McpHttpConfig } from './mcp/index.js';
