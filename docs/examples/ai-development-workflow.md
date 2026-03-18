@@ -41,6 +41,9 @@ projectPath + codingLanguage
  Refactorer  (GitNexus rename for safe symbol changes · write_file via MCP)
       │
       ▼
+ Spec Writer  (write/update SPEC.md — next requests build on this)
+      │
+      ▼
    Done ✓
 ```
 
@@ -278,6 +281,18 @@ Review against:
 - Complexity — functions with cyclomatic complexity > 3 deserve scrutiny
 - Naming — names must reveal intent without a comment
 For each issue: what it is, why it matters, specific refactoring suggestion.`;
+
+// ─── Spec Writer ──────────────────────────────────────────────────────────────
+
+export const specWriterPrompt = promptTemplate`You are a technical writer maintaining a living specification document (SPEC.md).
+${'codeStyle'}
+SPEC.md is the project's single source of truth across AI-driven development sessions.
+Rules:
+- If SPEC.md already exists (read_file first), UPDATE it — do not overwrite sections unrelated to the current feature.
+- Structure: project overview, architecture decisions, implemented features (each with user story + acceptance criteria + key files), open questions, known constraints.
+- Keep it concise — future agents read this, not humans. Prefer bullet points over prose.
+- Record WHY decisions were made, not just what was built.
+- After writing, confirm the file path so the orchestrator can log it.`;
 
 // ─── Refactorer ───────────────────────────────────────────────────────────────
 
@@ -531,6 +546,13 @@ Initialise a TypeScript project with BDD support:
 5. write_file: cucumber.json  ({ "require": ["step-definitions/**/*.ts"], "import": ["step-definitions/**/*.ts"] })
 6. run_command: npm pkg set scripts.test="cucumber-js"
 7. run_command: npm pkg set scripts.test:run="cucumber-js --exit"
+8. write_file: .gitignore with:
+   node_modules/
+   dist/
+   .env
+   *.log
+   .DS_Store
+   .gitnexus/embeddings/
 Smoke test: run_command: npx tsc --noEmit && echo OK
 `,
   go: `
@@ -541,6 +563,15 @@ Initialise a Go project with Godog (BDD) support:
 4. write_file: features/.gitkeep
 5. write_file: cmd/main.go  (minimal main package)
 6. write_file: Makefile  (test target: godog)
+7. write_file: .gitignore with:
+   /bin/
+   *.exe
+   *.test
+   *.out
+   vendor/
+   .env
+   .DS_Store
+   .gitnexus/embeddings/
 Smoke test: run_command: go build ./...
 `,
   flutter: `
@@ -549,6 +580,15 @@ Initialise a Flutter project with BDD support:
 2. run_command: flutter pub add --dev bdd_widget_test build_runner
 3. run_command: flutter pub get
 4. mkdir -p features test
+5. write_file: .gitignore with (merge with Flutter's default):
+   .dart_tool/
+   build/
+   .flutter-plugins
+   .flutter-plugins-dependencies
+   *.g.dart
+   .env
+   .DS_Store
+   .gitnexus/embeddings/
 Smoke test: run_command: flutter analyze
 `,
   python: `
@@ -558,6 +598,16 @@ Initialise a Python project with Behave (BDD) support:
 3. mkdir -p features/steps src
 4. write_file: pyproject.toml  (basic project metadata)
 5. write_file: features/environment.py  (empty behave environment file)
+6. write_file: .gitignore with:
+   .venv/
+   __pycache__/
+   *.pyc
+   *.pyo
+   .env
+   dist/
+   *.egg-info/
+   .DS_Store
+   .gitnexus/embeddings/
 Smoke test: run_command: .venv/bin/behave --dry-run 2>&1 || echo OK
 `,
   rust: `
@@ -567,6 +617,12 @@ Initialise a Rust project with Cucumber (BDD) support:
 3. mkdir -p tests/features
 4. write_file: tests/cucumber.rs  (minimal Cucumber test harness)
 5. write_file: Cargo.toml  (add [[test]] section for cucumber runner)
+6. write_file: .gitignore with:
+   /target/
+   Cargo.lock   # omit for libraries; keep for binaries
+   .env
+   .DS_Store
+   .gitnexus/embeddings/
 Smoke test: run_command: cargo check
 `,
 };
@@ -947,7 +1003,8 @@ import { anthropic } from '@daedalus-ai-dev/ai-sdk';
 import {
   pmPrompt, amigoPrompt, criteriaEnricherPrompt,
   testAutomationPrompt, codingMachinePrompt, fixPlannerPrompt,
-  developerPrompt, reviewerPrompt, refactorerPrompt, style,
+  developerPrompt, reviewerPrompt, refactorerPrompt,
+  specWriterPrompt, style,
 } from './prompts.js';
 import {
   getNextTaskTool, completeTaskTool,
@@ -1090,6 +1147,18 @@ export function setupRegistry(
     tools: [...fsTools, ...gitnexusTools, ...lspTools],
     contextManager: slidingWindow(15),
   }));
+
+  // ── Spec Writer ──────────────────────────────────────────────────────────────
+  // Last agent to run. Reads the existing SPEC.md if present (read_file),
+  // merges the current feature's story, criteria, key files, and decisions,
+  // then writes the updated file (write_file). Future workflow runs start
+  // by reading SPEC.md so they understand the project's history.
+  registerAgent('spec-writer', agent({
+    provider: opus,
+    instructions: specWriterPrompt({ codeStyle: lang }),
+    tools: [...fsTools],   // read_file + write_file only — no code navigation needed
+    contextManager: slidingWindow(10),
+  }));
 }
 
 // ─── agentTool() delegates ────────────────────────────────────────────────────
@@ -1102,6 +1171,7 @@ export const fixPlannerTool     = agentTool('fix-planner',      { description: '
 export const developerTool      = agentTool('developer',        { description: 'Implement all open tasks one by one, running impact analysis before each change.' });
 export const codeReviewerTool   = agentTool('code-reviewer',    { description: 'Review the implementation using GitNexus context on changed symbols.' });
 export const refactorerTool     = agentTool('refactorer',       { description: 'Refactor files based on review feedback. Use gitnexus_rename for symbol renames.' });
+export const specWriterTool     = agentTool('spec-writer',       { description: 'Write or update SPEC.md with the completed feature: user story, acceptance criteria, key files, and decisions.' });
 ```
 
 ---
@@ -1123,7 +1193,7 @@ import { scaffoldProject } from './scaffolder.js';
 import {
   pmTool, threeAmigosTool, testAutomationTool,
   codingMachineTool, fixPlannerTool, developerTool,
-  codeReviewerTool, refactorerTool,
+  codeReviewerTool, refactorerTool, specWriterTool,
 } from './registry.js';
 
 // ─── State management tools (used by the orchestrator) ───────────────────────
@@ -1256,7 +1326,7 @@ Do not skip phases.`,
     tools: [
       pmTool, threeAmigosTool, testAutomationTool,
       codingMachineTool, fixPlannerTool, developerTool,
-      codeReviewerTool, refactorerTool,
+      codeReviewerTool, refactorerTool, specWriterTool,
       updateUserStoryTool, saveFeatureFileTool, getWorkflowContextTool,
     ],
     maxIterations: 40,
@@ -1299,9 +1369,18 @@ Do not skip phases.`,
     `Use get_workflow_context first.`
   );
 
+  // ── Phase 9: spec writer ──────────────────────────────────────────────────
+  await orchestrator.prompt(
+    `Implementation is complete and reviewed. Run spec_writer to write or update ` +
+    `${projectPath}/SPEC.md. The spec must include: the user story, acceptance criteria, ` +
+    `key files changed, and any architecture decisions made during this session. ` +
+    `Read the existing SPEC.md first if it exists — only update, never overwrite unrelated sections.`
+  );
+
   // ── Summary ───────────────────────────────────────────────────────────────
   const done  = state.tasks.filter((t) => t.status === 'done').length;
   const total = state.tasks.length;
+  const specPath = `${projectPath}/SPEC.md`;
 
   console.log('\n\n✅  Workflow complete!');
   console.log(`   Project:         ${projectPath}`);
@@ -1311,6 +1390,7 @@ Do not skip phases.`,
   console.log(`   Feature file:    ${featureFilePath}`);
   console.log(`   Review comments: ${state.reviewComments.length}`);
   console.log(`   Refactored:      ${Object.keys(state.refactoredCode).length} file(s)`);
+  console.log(`   Spec:            ${specPath}`);
 }
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
@@ -1343,7 +1423,7 @@ await runDevelopmentWorkflow(
 | `defineTool()` | `task-tools.ts`, `input-tools.ts`, `index.ts` | Typed contracts; input validated before any agent touches shared state |
 | `Agent Registry` | `registry.ts` | One place for all agents; orchestrator delegates via `agentTool()` — never imports agent functions directly |
 | `promptTemplate` | `prompts.ts` | System prompts are typed; `codeStyle` injects language-specific idioms, file conventions, and error handling patterns into every agent |
-| `slidingWindow` | PM, reviewer, refactorer | Short-lived agents; older context never helps |
+| `slidingWindow` | PM, reviewer, refactorer, spec-writer | Short-lived agents; older context never helps |
 | `tokenBudget` | Three Amigos | BDD meetings grow unpredictably; cap by estimated token count |
 | `summarizing` | Developer | Long-running loop; `claude-haiku-4-5` compresses completed task history so the current task always gets a clean context |
 | `connectMcp()` (filesystem) | `mcp.ts` → developer, refactorer | File I/O without raw `fs` calls scattered across the codebase |
@@ -1362,6 +1442,7 @@ await runDevelopmentWorkflow(
 | Developer | `gitnexus_impact`, `gitnexus_detect_changes` | `lsp_hover`, `lsp_find_references` | Blast radius before edit; type info while writing; all call sites before changing a signature |
 | Code Reviewer | `gitnexus_context` | `lsp_incoming_calls`, `lsp_document_symbols` | Knowledge-graph callers + live call hierarchy; file symbol overview |
 | Refactorer | `gitnexus_rename` | `lsp_find_references` | Live reference check before rename; graph-aware multi-file apply |
+| Spec Writer | — | — | Filesystem MCP only; reads existing SPEC.md, merges new feature context, writes updated file |
 
 ## Why this structure works
 
