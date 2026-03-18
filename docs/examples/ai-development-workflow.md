@@ -116,6 +116,7 @@ export type CodingLanguage = 'typescript' | 'go' | 'flutter' | 'python' | 'rust'
 
 export type WorkflowState = {
   featureRequest: string;
+  projectPath: string;                       // absolute path to the target project
   codingLanguage: CodingLanguage;            // target implementation language
   userStory: string;
   acceptanceCriteria: string[];
@@ -128,6 +129,7 @@ export type WorkflowState = {
 
 export const state: WorkflowState = {
   featureRequest: '',
+  projectPath: '',
   codingLanguage: 'typescript',
   userStory: '',
   acceptanceCriteria: [],
@@ -293,9 +295,10 @@ let _fs: McpConnection | null = null;
 
 /**
  * Filesystem MCP server — exposes read_file, write_file, list_directory, etc.
- * The developer and refactorer use this instead of raw fs module calls.
+ * Scoped to `projectPath` so generated files land in the target project,
+ * not in the workflow tool's own directory.
  */
-export async function getFilesystemMcp(): Promise<McpConnection> {
+export async function getFilesystemMcp(projectPath: string): Promise<McpConnection> {
   if (_fs) return _fs;
   _fs = await connectMcp({
     type: 'stdio',
@@ -303,10 +306,10 @@ export async function getFilesystemMcp(): Promise<McpConnection> {
     args: [
       '-y',
       '@modelcontextprotocol/server-filesystem',
-      path.resolve(process.cwd()),
+      path.resolve(projectPath),   // ← target project, not process.cwd()
     ],
   });
-  console.log('✓ Filesystem MCP connected');
+  console.log(`✓ Filesystem MCP connected → ${projectPath}`);
   return _fs;
 }
 
@@ -319,17 +322,18 @@ let _gitnexus: McpConnection | null = null;
  *   gitnexus_query, gitnexus_context, gitnexus_impact,
  *   gitnexus_detect_changes, gitnexus_rename, gitnexus_cypher
  *
- * Requires the index to be up to date: `npx gitnexus analyze`
+ * Pointed at `projectPath` so GitNexus analyses the target project's index.
+ * Requires the index to be up to date: `npx gitnexus analyze` inside the project.
  */
-export async function getGitnexusMcp(): Promise<McpConnection> {
+export async function getGitnexusMcp(projectPath: string): Promise<McpConnection> {
   if (_gitnexus) return _gitnexus;
   _gitnexus = await connectMcp({
     type: 'stdio',
     command: 'npx',
     args: ['gitnexus', 'mcp'],
-    env: { GITNEXUS_REPO: process.cwd() },
+    env: { GITNEXUS_REPO: path.resolve(projectPath) },  // ← target project
   });
-  console.log('✓ GitNexus MCP connected');
+  console.log(`✓ GitNexus MCP connected → ${projectPath}`);
   return _gitnexus;
 }
 
@@ -634,16 +638,17 @@ import {
 
 const saveFeatureFileTool = defineTool({
   name: 'save_feature_file',
-  description: 'Save generated Gherkin content to disk and record it in state.',
+  description: 'Save generated Gherkin content to disk inside the target project and record it in state.',
   schema: (s) => ({
-    path: s.string().description('e.g. features/password-reset.feature').required(),
+    relativePath: s.string().description('Relative path inside the project, e.g. features/password-reset.feature').required(),
     content: s.string().description('Full Gherkin .feature content').required(),
   }),
   handle: async (input) => {
-    fs.mkdirSync('features', { recursive: true });
-    fs.writeFileSync(String(input.path), String(input.content), 'utf8');
+    const fullPath = path.join(state.projectPath, String(input.relativePath));
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+    fs.writeFileSync(fullPath, String(input.content), 'utf8');
     state.featureFile = String(input.content);
-    return `Feature file saved to ${input.path}`;
+    return `Feature file saved to ${fullPath}`;
   },
 });
 
@@ -695,21 +700,24 @@ function runTests(featureFile: string): TestResult {
 export async function runDevelopmentWorkflow(
   featureRequest: string,
   options: {
+    projectPath: string;                     // absolute path to the target project
     codingLanguage?: CodingLanguage;
-    featureFile?: string;
+    featureFile?: string;                    // relative to projectPath
     maxFixAttempts?: number;
-  } = {},
+  },
 ): Promise<void> {
-  const featureFilePath = options.featureFile ?? 'features/new-feature.feature';
+  const projectPath     = path.resolve(options.projectPath);
+  const featureFilePath = path.join(projectPath, options.featureFile ?? 'features/new-feature.feature');
   const maxFixAttempts  = options.maxFixAttempts ?? 3;
 
   state.featureRequest  = featureRequest;
+  state.projectPath     = projectPath;
   state.codingLanguage  = options.codingLanguage ?? 'typescript';
 
-  // Connect MCP servers (lazy singletons — shared across all agents)
+  // Connect MCP servers scoped to the target project (lazy singletons)
   const [fsMcp, gitnexusMcp] = await Promise.all([
-    getFilesystemMcp(),
-    getGitnexusMcp(),
+    getFilesystemMcp(projectPath),
+    getGitnexusMcp(projectPath),
   ]);
 
   // Register all agents (prompts, context managers, tools all wired here)
@@ -723,6 +731,11 @@ export async function runDevelopmentWorkflow(
     instructions: `You are the workflow orchestrator for an AI-driven BDD development process.
 Execute each phase in order. Use get_workflow_context between phases to stay oriented.
 
+Target project: ${projectPath}
+Coding language: ${state.codingLanguage}
+
+All file paths passed to agents and tools must be absolute paths inside: ${projectPath}
+
 Phases:
 1. product_manager          — Clarify requirements; write user story + acceptance criteria
 2. update_user_story        — Persist to state
@@ -734,7 +747,7 @@ Phases:
 7. code_reviewer            — Review using GitNexus context on changed symbols
 8. refactorer               — Apply suggestions; use gitnexus_rename for safe renames
 
-Do not skip phases. Coding language is: ${state.codingLanguage}.`,
+Do not skip phases.`,
     tools: [
       pmTool, threeAmigosTool, testAutomationTool,
       codingMachineTool, fixPlannerTool, developerTool,
@@ -786,6 +799,7 @@ Do not skip phases. Coding language is: ${state.codingLanguage}.`,
   const total = state.tasks.length;
 
   console.log('\n\n✅  Workflow complete!');
+  console.log(`   Project:         ${projectPath}`);
   console.log(`   Language:        ${state.codingLanguage}`);
   console.log(`   User Story:      ${state.userStory}`);
   console.log(`   Tasks:           ${done}/${total} done`);
@@ -798,13 +812,21 @@ Do not skip phases. Coding language is: ${state.codingLanguage}.`,
 
 await runDevelopmentWorkflow(
   'Users should be able to reset their password via email',
-  { codingLanguage: 'typescript' },
+  {
+    projectPath: '/Users/alice/projects/my-api',   // ← the project to work on
+    codingLanguage: 'typescript',
+  },
 );
 
 // Other examples:
-// await runDevelopmentWorkflow('Add a health check endpoint', { codingLanguage: 'go' });
-// await runDevelopmentWorkflow('Show a loading spinner during network requests', { codingLanguage: 'flutter' });
-// await runDevelopmentWorkflow('Parse and validate incoming webhook payloads', { codingLanguage: 'python' });
+// await runDevelopmentWorkflow('Add a health check endpoint', {
+//   projectPath: '/Users/alice/projects/my-go-service',
+//   codingLanguage: 'go',
+// });
+// await runDevelopmentWorkflow('Show a loading spinner during network requests', {
+//   projectPath: '/Users/alice/projects/my-flutter-app',
+//   codingLanguage: 'flutter',
+// });
 ```
 
 ---
