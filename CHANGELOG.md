@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.3](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.2...ai-sdk-v0.1.3) (2026-03-18)
+
+
+### Features
+
+* add prompt templates ([1fa2f2f](https://github.com/daedalus-ai-dev/ai-sdk/commit/1fa2f2fa568529cea3731b5c793757244224793f)), closes [#9](https://github.com/daedalus-ai-dev/ai-sdk/issues/9)
+* prompt templates ([057acaf](https://github.com/daedalus-ai-dev/ai-sdk/commit/057acafae497f3771f9f0397f3f5c49fdd46e999))
+
 ## [0.1.2](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.1...ai-sdk-v0.1.2) (2026-03-18)
 
 
