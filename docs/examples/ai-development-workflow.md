@@ -57,6 +57,7 @@ ai-dev-workflow/
     ├── state.ts                       # Shared WorkflowState (blackboard)
     ├── prompts.ts                     # promptTemplate definitions (per coding language)
     ├── mcp.ts                         # connectMcp() — filesystem, GitNexus, GitHub
+    ├── lsp.ts                         # LSP client — defineTool() wrappers (optional)
     ├── registry.ts                    # registerAgent() — all agents in one place
     └── tools/
         ├── task-tools.ts              # defineTool() — task queue management
@@ -229,8 +230,10 @@ Rules:
 
 export const codingMachinePrompt = promptTemplate`You are a senior engineer planning a feature implementation.
 ${'codeStyle'}
-Before planning, use gitnexus_query to search for existing related code so tasks don't duplicate work.
-Use gitnexus_context on any existing symbol that the new feature will touch.
+Before planning:
+- Use gitnexus_query to search for existing related code (avoid duplicating work).
+- Use lsp_workspace_symbol to check if a specific function or type already exists by exact name.
+- Use gitnexus_context on any existing symbol the new feature will touch.
 Break the feature into focused, independently implementable tasks.
 Each task maps to a single file or well-scoped module.
 Order by dependency: foundational code first, integration last.`;
@@ -246,18 +249,23 @@ export const developerPrompt = promptTemplate`You are a senior developer impleme
 ${'codeStyle'}
 Workflow per task:
 1. get_next_task — claim the next open task
-2. gitnexus_impact — run impact analysis on any symbol you plan to change; abort if risk is HIGH/CRITICAL without user confirmation
-3. get_implemented_code — read what already exists; stay consistent
-4. write_file (MCP) — write the implementation
-5. complete_task — mark the task done
-6. gitnexus_detect_changes — verify your changes match the expected scope
+2. gitnexus_impact — run impact analysis on any symbol you plan to change; abort if HIGH/CRITICAL without user confirmation
+3. lsp_find_references — if changing an existing function signature, verify all call sites first
+4. get_implemented_code — read what already exists; stay consistent
+5. lsp_hover — use to check types of symbols you're calling while writing
+6. write_file (MCP) — write the implementation
+7. complete_task — mark the task done
+8. gitnexus_detect_changes — verify your changes match the expected scope
 Repeat until get_next_task returns NO_TASKS.`;
 
 // ─── Code Reviewer ────────────────────────────────────────────────────────────
 
 export const reviewerPrompt = promptTemplate`You are a principal engineer doing a thorough code review.
 ${'codeStyle'}
-Use gitnexus_context on each changed symbol to see all callers and usages before commenting.
+Before commenting on a changed symbol:
+- Use gitnexus_context to see all callers in the knowledge graph.
+- Use lsp_incoming_calls for a live call hierarchy from the language server (more current than the index).
+- Use lsp_document_symbols to get a quick overview of all symbols in a changed file.
 Review against:
 - SOLID principles (especially SRP and OCP)
 - DRY — flag duplication that should be extracted
@@ -270,11 +278,13 @@ For each issue: what it is, why it matters, specific refactoring suggestion.`;
 
 export const refactorerPrompt = promptTemplate`You are a principal engineer refactoring code based on review feedback.
 ${'codeStyle'}
-For symbol renames, ALWAYS use gitnexus_rename (dry_run first, then apply) — never find-and-replace.
+For symbol renames:
+1. Use lsp_find_references to see every usage across the project.
+2. Use gitnexus_rename with dry_run=true to preview the graph-aware rename.
+3. Apply with dry_run=false — never use find-and-replace.
 Use read_file (MCP) to read the current file before making changes.
 Use write_file (MCP) to save the refactored version.
-Do NOT change behaviour — only structure, naming, and organisation.
-Preserve all existing function signatures that are used externally.`;
+Do NOT change behaviour — only structure, naming, and organisation.`;
 ```
 
 ---
@@ -451,6 +461,296 @@ export const askUserTool = defineTool({
 
 ---
 
+## `src/lsp.ts` — LSP code intelligence (optional)
+
+When a language server is installed for the target project's coding language, agents can use it for precise code navigation — finding all references before a rename, checking types while writing, listing every caller of a function under review. When no server is available the function returns an empty array and agents work without LSP.
+
+The module speaks plain JSON-RPC over stdio — no editor required.
+
+```ts
+// src/lsp.ts
+import { defineTool } from '@daedalus-ai-dev/ai-sdk';
+import type { Tool } from '@daedalus-ai-dev/ai-sdk';
+import { spawn } from 'child_process';
+import type { ChildProcessWithoutNullStreams } from 'child_process';
+import * as path from 'path';
+import type { CodingLanguage } from './state.js';
+
+// ─── Language server commands ─────────────────────────────────────────────────
+
+const serverCommand: Record<CodingLanguage, { cmd: string; args: string[] }> = {
+  typescript: { cmd: 'typescript-language-server', args: ['--stdio'] },
+  go:         { cmd: 'gopls',                       args: [] },
+  flutter:    { cmd: 'dart',                        args: ['language-server'] },
+  python:     { cmd: 'pylsp',                       args: [] },
+  rust:       { cmd: 'rust-analyzer',               args: [] },
+};
+
+// ─── Minimal JSON-RPC client over stdio ──────────────────────────────────────
+
+class LspClient {
+  private proc: ChildProcessWithoutNullStreams;
+  private buffer = '';
+  private pending = new Map<number, (result: unknown) => void>();
+  private nextId = 1;
+
+  constructor(private projectPath: string, lang: CodingLanguage) {
+    const { cmd, args } = serverCommand[lang];
+    this.proc = spawn(cmd, args, { cwd: projectPath });
+    this.proc.stdout.on('data', (chunk: Buffer) => this.onData(chunk.toString()));
+    this.proc.stderr.on('data', () => { /* suppress language server logs */ });
+  }
+
+  private onData(raw: string): void {
+    this.buffer += raw;
+    const match = this.buffer.match(/Content-Length: (\d+)\r\n\r\n/);
+    if (!match) return;
+    const len    = parseInt(match[1], 10);
+    const start  = this.buffer.indexOf('\r\n\r\n') + 4;
+    if (this.buffer.length < start + len) return;
+    const body   = this.buffer.slice(start, start + len);
+    this.buffer  = this.buffer.slice(start + len);
+    const msg    = JSON.parse(body) as { id?: number; result?: unknown };
+    if (msg.id !== undefined) this.pending.get(msg.id)?.(msg.result ?? null);
+    this.pending.delete(msg.id!);
+  }
+
+  private send(method: string, params: unknown): Promise<unknown> {
+    return new Promise((resolve) => {
+      const id  = this.nextId++;
+      const msg = JSON.stringify({ jsonrpc: '2.0', id, method, params });
+      const envelope = `Content-Length: ${Buffer.byteLength(msg)}\r\n\r\n${msg}`;
+      this.pending.set(id, resolve);
+      this.proc.stdin.write(envelope);
+    });
+  }
+
+  /** Handshake — must be called before any other request. */
+  async initialize(): Promise<void> {
+    await this.send('initialize', {
+      processId: process.pid,
+      rootUri: `file://${this.projectPath}`,
+      capabilities: {
+        textDocument: {
+          references: { dynamicRegistration: false },
+          hover:      { dynamicRegistration: false, contentFormat: ['plaintext'] },
+          callHierarchy: { dynamicRegistration: false },
+        },
+        workspace: { symbol: { dynamicRegistration: false } },
+      },
+    });
+    // notify the server the client is ready
+    const notif = JSON.stringify({ jsonrpc: '2.0', method: 'initialized', params: {} });
+    this.proc.stdin.write(`Content-Length: ${Buffer.byteLength(notif)}\r\n\r\n${notif}`);
+  }
+
+  async workspaceSymbol(query: string) {
+    return this.send('workspace/symbol', { query }) as Promise<LspSymbol[]>;
+  }
+
+  async documentSymbol(filePath: string) {
+    return this.send('textDocument/documentSymbol', {
+      textDocument: { uri: `file://${filePath}` },
+    }) as Promise<LspSymbol[]>;
+  }
+
+  async hover(filePath: string, line: number, character: number) {
+    return this.send('textDocument/hover', {
+      textDocument: { uri: `file://${filePath}` },
+      position: { line, character },
+    }) as Promise<{ contents: { value: string } } | null>;
+  }
+
+  async references(filePath: string, line: number, character: number) {
+    return this.send('textDocument/references', {
+      textDocument: { uri: `file://${filePath}` },
+      position: { line, character },
+      context: { includeDeclaration: false },
+    }) as Promise<LspLocation[]>;
+  }
+
+  async prepareCallHierarchy(filePath: string, line: number, character: number) {
+    return this.send('textDocument/prepareCallHierarchy', {
+      textDocument: { uri: `file://${filePath}` },
+      position: { line, character },
+    }) as Promise<LspCallHierarchyItem[]>;
+  }
+
+  async incomingCalls(item: LspCallHierarchyItem) {
+    return this.send('callHierarchy/incomingCalls', { item }) as Promise<LspIncomingCall[]>;
+  }
+
+  dispose(): void {
+    this.proc.stdin.end();
+    this.proc.kill();
+  }
+}
+
+// ─── LSP shape types (minimal) ────────────────────────────────────────────────
+
+type LspSymbol          = { name: string; kind: number; location: LspLocation };
+type LspLocation        = { uri: string; range: { start: { line: number; character: number } } };
+type LspCallHierarchyItem = { name: string; uri: string; range: { start: { line: number; character: number } } };
+type LspIncomingCall    = { from: LspCallHierarchyItem };
+
+// ─── Helper: resolve a symbol name to its position ───────────────────────────
+
+async function resolveSymbol(
+  client: LspClient,
+  projectPath: string,
+  symbolName: string,
+): Promise<{ filePath: string; line: number; character: number } | null> {
+  const symbols = await client.workspaceSymbol(symbolName);
+  const match   = symbols?.find((s) => s.name === symbolName);
+  if (!match) return null;
+  const filePath = match.location.uri.replace('file://', '');
+  return { filePath, line: match.location.range.start.line, character: match.location.range.start.character };
+}
+
+// ─── Public factory ───────────────────────────────────────────────────────────
+
+/**
+ * Create LSP-backed `defineTool()` instances for the target project.
+ * Returns an empty array if the language server binary is not found,
+ * so agents degrade gracefully without any code changes.
+ *
+ * @example
+ * const lspTools = await createLspTools('/path/to/project', 'typescript');
+ * // pass lspTools to agents in registry.ts
+ */
+export async function createLspTools(
+  projectPath: string,
+  lang: CodingLanguage,
+): Promise<Tool[]> {
+  const client = new LspClient(projectPath, lang);
+  try {
+    await client.initialize();
+  } catch {
+    console.warn(`⚠  LSP: no language server found for "${lang}" — skipping code intelligence tools`);
+    client.dispose();
+    return [];
+  }
+
+  const absPath = (p: string) => path.isAbsolute(p) ? p : path.join(projectPath, p);
+
+  // ── Tool: search workspace symbols ─────────────────────────────────────────
+  const lspWorkspaceSymbol = defineTool({
+    name: 'lsp_workspace_symbol',
+    description: 'Search for a symbol (function, class, type) by name across the entire project. Use this before planning tasks to check if something already exists.',
+    schema: (s) => ({
+      query: s.string().description('Symbol name or partial name to search for').required(),
+    }),
+    handle: async (input) => {
+      const results = await client.workspaceSymbol(String(input.query));
+      if (!results?.length) return `No symbols found matching "${input.query}".`;
+      return results.slice(0, 20).map((s) =>
+        `${s.name}  ${s.location.uri.replace('file://', '').replace(projectPath, '')}:${s.location.range.start.line + 1}`
+      ).join('\n');
+    },
+  });
+
+  // ── Tool: list symbols in a file ────────────────────────────────────────────
+  const lspDocumentSymbols = defineTool({
+    name: 'lsp_document_symbols',
+    description: 'List all symbols (functions, classes, variables) defined in a file.',
+    schema: (s) => ({
+      filePath: s.string().description('Absolute or project-relative file path').required(),
+    }),
+    handle: async (input) => {
+      const results = await client.documentSymbol(absPath(String(input.filePath)));
+      if (!results?.length) return 'No symbols found.';
+      return results.map((s) => `${s.name}  (line ${s.location.range.start.line + 1})`).join('\n');
+    },
+  });
+
+  // ── Tool: hover — get type info ─────────────────────────────────────────────
+  const lspHover = defineTool({
+    name: 'lsp_hover',
+    description: 'Get the type signature and documentation for a symbol at a specific position. Use while writing code to verify types.',
+    schema: (s) => ({
+      filePath:  s.string().description('Absolute or project-relative path').required(),
+      line:      s.integer().description('1-based line number').required(),
+      character: s.integer().description('1-based character offset').required(),
+    }),
+    handle: async (input) => {
+      const result = await client.hover(
+        absPath(String(input.filePath)),
+        Number(input.line) - 1,      // LSP is 0-based
+        Number(input.character) - 1,
+      );
+      return result?.contents?.value ?? 'No type information available.';
+    },
+  });
+
+  // ── Tool: find all references ───────────────────────────────────────────────
+  const lspFindReferences = defineTool({
+    name: 'lsp_find_references',
+    description: 'Find every usage of a symbol across the project. Run this before modifying or renaming a symbol to understand the blast radius.',
+    schema: (s) => ({
+      symbolName: s.string().description('Exact name of the symbol').required(),
+    }),
+    handle: async (input) => {
+      const pos = await resolveSymbol(client, projectPath, String(input.symbolName));
+      if (!pos) return `Symbol "${input.symbolName}" not found in workspace.`;
+      const refs = await client.references(pos.filePath, pos.line, pos.character);
+      if (!refs?.length) return 'No references found.';
+      return refs.map((r) =>
+        `${r.uri.replace('file://', '').replace(projectPath, '')}:${r.range.start.line + 1}`
+      ).join('\n');
+    },
+  });
+
+  // ── Tool: incoming call hierarchy ───────────────────────────────────────────
+  const lspIncomingCalls = defineTool({
+    name: 'lsp_incoming_calls',
+    description: 'List every function that directly calls a given function. Use during code review to see the full call graph before commenting on a change.',
+    schema: (s) => ({
+      symbolName: s.string().description('Exact name of the function').required(),
+    }),
+    handle: async (input) => {
+      const pos = await resolveSymbol(client, projectPath, String(input.symbolName));
+      if (!pos) return `Function "${input.symbolName}" not found.`;
+      const items = await client.prepareCallHierarchy(pos.filePath, pos.line, pos.character);
+      if (!items?.length) return 'No call hierarchy available.';
+      const calls = await client.incomingCalls(items[0]!);
+      if (!calls?.length) return `No callers found for "${input.symbolName}".`;
+      return calls.map((c) =>
+        `${c.from.name}  ${c.from.uri.replace('file://', '').replace(projectPath, '')}:${c.from.range.start.line + 1}`
+      ).join('\n');
+    },
+  });
+
+  return [
+    lspWorkspaceSymbol,
+    lspDocumentSymbols,
+    lspHover,
+    lspFindReferences,
+    lspIncomingCalls,
+  ];
+}
+```
+
+**Install the language server for your stack:**
+
+```bash
+# TypeScript
+npm install -g typescript-language-server typescript
+
+# Go
+go install golang.org/x/tools/gopls@latest
+
+# Flutter / Dart  (included with the Flutter SDK)
+which dart   # already available if Flutter is installed
+
+# Python
+pip install python-lsp-server
+
+# Rust
+rustup component add rust-analyzer
+```
+
+---
+
 ## `src/registry.ts` — Agent registry
 
 All agents are registered here. GitNexus tools are passed to the agents that need codebase intelligence — the coding machine, developer, reviewer, and refactorer. The orchestrator delegates to all of them via `agentTool()`.
@@ -481,10 +781,14 @@ const haiku = anthropic('claude-haiku-4-5');
 export function setupRegistry(
   fsMcp: McpConnection,
   gitnexusMcp: McpConnection,
+  lspTools: Tool[] = [],          // empty array → agents work without LSP
 ): void {
   const fsTools        = fsMcp.tools;          // read_file, write_file, list_directory, …
   const gitnexusTools  = gitnexusMcp.tools;    // gitnexus_query, gitnexus_impact, gitnexus_context,
                                                // gitnexus_detect_changes, gitnexus_rename, …
+  // LSP tools available when configured:
+  //   lsp_workspace_symbol, lsp_document_symbols, lsp_hover,
+  //   lsp_find_references, lsp_incoming_calls
 
   const lang = style(state.codingLanguage);
 
@@ -542,12 +846,12 @@ export function setupRegistry(
   }));
 
   // ── Coding Machine ───────────────────────────────────────────────────────────
-  // Has gitnexus_query + gitnexus_context so it searches existing code
-  // before planning tasks — avoids duplicating work that already exists.
+  // gitnexus_query + gitnexus_context finds existing code before planning.
+  // lsp_workspace_symbol lets it check if a function already exists by exact name.
   registerAgent('coding-machine', agent({
     provider: opus,
     instructions: codingMachinePrompt({ codeStyle: lang }),
-    tools: [getTaskBoardTool, ...gitnexusTools],
+    tools: [getTaskBoardTool, ...gitnexusTools, ...lspTools],
   }));
 
   // ── Fix Planner ──────────────────────────────────────────────────────────────
@@ -558,10 +862,10 @@ export function setupRegistry(
   }));
 
   // ── Developer ────────────────────────────────────────────────────────────────
-  // Long-running loop: summarizing() compresses completed task history
-  // so the current task always has a clean, focused context window.
-  // gitnexus_impact runs before every symbol change; gitnexus_detect_changes
-  // verifies scope after each task.
+  // Long-running loop: summarizing() compresses completed task history.
+  // gitnexus_impact before edits; gitnexus_detect_changes after.
+  // lsp_hover checks type signatures while writing;
+  // lsp_find_references verifies no call sites are missed before changing a signature.
   registerAgent('developer', agent({
     provider: opus,
     instructions: developerPrompt({ codeStyle: lang }),
@@ -571,6 +875,7 @@ export function setupRegistry(
       completeTaskTool,
       ...fsTools,         // write_file, read_file (no raw fs calls)
       ...gitnexusTools,   // gitnexus_impact, gitnexus_detect_changes
+      ...lspTools,        // lsp_hover, lsp_find_references
     ],
     maxIterations: 50,
     contextManager: summarizing({
@@ -582,22 +887,25 @@ export function setupRegistry(
   }));
 
   // ── Code Reviewer ────────────────────────────────────────────────────────────
-  // gitnexus_context lets the reviewer see all callers of a changed symbol
-  // before commenting — avoids flagging changes that are intentionally breaking.
+  // gitnexus_context sees all callers of a changed symbol.
+  // lsp_incoming_calls gives the precise call graph from the live language server —
+  // useful when the GitNexus index is slightly stale.
+  // lsp_document_symbols lists all symbols in a changed file for a quick overview.
   registerAgent('code-reviewer', agent({
     provider: opus,
     instructions: reviewerPrompt({ codeStyle: lang }),
-    tools: [...fsTools, ...gitnexusTools],
+    tools: [...fsTools, ...gitnexusTools, ...lspTools],
     contextManager: slidingWindow(20),
   }));
 
   // ── Refactorer ───────────────────────────────────────────────────────────────
-  // gitnexus_rename does a graph-aware multi-file rename instead of
-  // find-and-replace. write_file (MCP) saves results without raw fs.
+  // gitnexus_rename for graph-aware multi-file rename.
+  // lsp_find_references for a live cross-check that all usages are accounted for
+  // before committing to a rename or signature change.
   registerAgent('refactorer', agent({
     provider: opus,
     instructions: refactorerPrompt({ codeStyle: lang }),
-    tools: [...fsTools, ...gitnexusTools],
+    tools: [...fsTools, ...gitnexusTools, ...lspTools],
     contextManager: slidingWindow(15),
   }));
 }
@@ -627,7 +935,8 @@ import { anthropic } from '@daedalus-ai-dev/ai-sdk';
 import { state, log } from './state.js';
 import type { CodingLanguage } from './state.js';
 import { setupRegistry } from './registry.js';
-import { getFilesystemMcp, getGitnexusMcp } from './mcp.ts';
+import { getFilesystemMcp, getGitnexusMcp } from './mcp.js';
+import { createLspTools } from './lsp.js';
 import {
   pmTool, threeAmigosTool, testAutomationTool,
   codingMachineTool, fixPlannerTool, developerTool,
@@ -714,14 +1023,20 @@ export async function runDevelopmentWorkflow(
   state.projectPath     = projectPath;
   state.codingLanguage  = options.codingLanguage ?? 'typescript';
 
-  // Connect MCP servers scoped to the target project (lazy singletons)
-  const [fsMcp, gitnexusMcp] = await Promise.all([
+  // Connect MCP servers and LSP in parallel (all scoped to the target project)
+  const [fsMcp, gitnexusMcp, lspTools] = await Promise.all([
     getFilesystemMcp(projectPath),
     getGitnexusMcp(projectPath),
+    // Returns [] if the language server binary is not installed — agents degrade gracefully
+    createLspTools(projectPath, state.codingLanguage),
   ]);
 
+  if (lspTools.length > 0) {
+    console.log(`✓ LSP connected (${lspTools.length} tools) for ${state.codingLanguage}`);
+  }
+
   // Register all agents (prompts, context managers, tools all wired here)
-  setupRegistry(fsMcp, gitnexusMcp);
+  setupRegistry(fsMcp, gitnexusMcp, lspTools);
 
   log('WORKFLOW', `"${featureRequest}" [${state.codingLanguage}]`);
 
@@ -844,16 +1159,17 @@ await runDevelopmentWorkflow(
 | `connectMcp()` (filesystem) | `mcp.ts` → developer, refactorer | File I/O without raw `fs` calls scattered across the codebase |
 | `connectMcp()` (GitNexus) | `mcp.ts` → coding-machine, developer, reviewer, refactorer | Codebase intelligence: query before planning, impact before editing, detect_changes after, rename safely |
 | `connectMcp()` (GitHub) | `mcp.ts` (optional) | `create_pull_request` at workflow end — no GitHub API client needed |
+| LSP (`createLspTools`) | `lsp.ts` | Live code intelligence from the language server: references, types, call hierarchy. Returns `[]` if not installed — agents degrade gracefully |
 
-### GitNexus tool usage per agent
+### Tool usage per agent
 
-| Agent | GitNexus tools used | Purpose |
-|---|---|---|
-| Coding Machine | `gitnexus_query`, `gitnexus_context` | Find existing code before planning; avoid duplicate work |
-| Fix Planner | `gitnexus_query` | Locate code related to failing steps |
-| Developer | `gitnexus_impact`, `gitnexus_detect_changes` | Check blast radius before editing; verify scope after |
-| Code Reviewer | `gitnexus_context` | See all callers of a changed symbol before commenting |
-| Refactorer | `gitnexus_rename` | Graph-aware multi-file rename — not find-and-replace |
+| Agent | GitNexus | LSP | Purpose |
+|---|---|---|---|
+| Coding Machine | `gitnexus_query`, `gitnexus_context` | `lsp_workspace_symbol` | Check existing code + exact-name symbol lookup before planning |
+| Fix Planner | `gitnexus_query` | — | Locate code related to failing steps |
+| Developer | `gitnexus_impact`, `gitnexus_detect_changes` | `lsp_hover`, `lsp_find_references` | Blast radius before edit; type info while writing; all call sites before changing a signature |
+| Code Reviewer | `gitnexus_context` | `lsp_incoming_calls`, `lsp_document_symbols` | Knowledge-graph callers + live call hierarchy; file symbol overview |
+| Refactorer | `gitnexus_rename` | `lsp_find_references` | Live reference check before rename; graph-aware multi-file apply |
 
 ## Why this structure works
 
@@ -862,5 +1178,7 @@ await runDevelopmentWorkflow(
 **GitNexus closes the feedback loop on existing code.** Without it, the coding machine plans tasks that duplicate existing functions. With it, `gitnexus_query` finds related code before planning, `gitnexus_impact` prevents silent breakage during implementation, and `gitnexus_rename` makes the refactorer's symbol changes safe across the entire call graph.
 
 **MCP servers as shared infrastructure.** Both the filesystem and GitNexus servers are lazy singletons connected once and passed into `setupRegistry()`. Every agent that needs them receives the live tool list — no wrapper code, no duplication.
+
+**GitNexus and LSP are complementary, not redundant.** GitNexus operates on a persistent knowledge graph — fast, context-rich, and great for impact analysis and architectural queries. LSP operates on the live source files — always up to date, precise to the character, and authoritative for type information. During a session where files change rapidly, LSP `lsp_find_references` is the ground truth; GitNexus `gitnexus_context` gives the broader picture of which execution flows are involved.
 
 **The test runner is not an agent.** `cucumber-js` exit code is the ground truth. There's no benefit to asking an LLM whether tests passed. The fix loop (plan → implement → re-run) is triggered in code, which makes the control flow explicit and auditable.
