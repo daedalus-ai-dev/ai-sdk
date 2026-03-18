@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitepress';
 
 export default defineConfig({
-  title: 'Rokkhopper AI SDK',
+  title: 'Daedalus AI SDK',
   description: 'A TypeScript SDK for building agents, tools, and multi-agent workflows',
   base: '/ai-sdk/',
 

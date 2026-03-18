@@ -1,6 +1,5 @@
 node_modules/
 dist/
-.vitepress/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
 *.js.map
