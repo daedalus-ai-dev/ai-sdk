@@ -36,8 +36,8 @@ interface AgentInterface {
 ## Example
 
 ```ts
-import type { AgentInterface } from '@rokkhopper/ai-sdk';
-import { runAgent, WebFetch } from '@rokkhopper/ai-sdk';
+import type { AgentInterface } from '@daedalus-ai-dev/ai-sdk';
+import { runAgent, WebFetch } from '@daedalus-ai-dev/ai-sdk';
 
 class ResearchAssistant implements AgentInterface {
   instructions() {
@@ -65,7 +65,7 @@ console.log(response.text);
 ### With structured output
 
 ```ts
-import type { AgentInterface, SchemaFn } from '@rokkhopper/ai-sdk';
+import type { AgentInterface, SchemaFn } from '@daedalus-ai-dev/ai-sdk';
 
 class SentimentAnalyser implements AgentInterface {
   instructions() {
@@ -97,7 +97,7 @@ console.log(response.structured.score);      // 0.95
 ### Passing a provider
 
 ```ts
-import { openrouter } from '@rokkhopper/ai-sdk';
+import { openrouter } from '@daedalus-ai-dev/ai-sdk';
 
 const response = await runAgent(new ResearchAssistant(), input, {
   provider: openrouter({ apiKey: process.env.OPENROUTER_API_KEY! }),

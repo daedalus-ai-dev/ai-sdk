@@ -11,7 +11,7 @@ hero:
       link: /guide/getting-started
     - theme: alt
       text: View on GitHub
-      link: https://github.com/rokkhopper/ai-sdk
+      link: https://github.com/daedalus-ai-dev/ai-sdk
 
 features:
   - icon: 🤖

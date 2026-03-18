@@ -7,7 +7,7 @@ This page walks through the most common SDK usage in five minutes. Each example 
 Call `configure()` once at your application's entry point. All subsequent `agent()` calls will use these defaults.
 
 ```ts
-import { configure, openrouter } from '@rokkhopper/ai-sdk';
+import { configure, openrouter } from '@daedalus-ai-dev/ai-sdk';
 
 configure({
   provider: openrouter({ apiKey: process.env.OPENROUTER_API_KEY! }),
@@ -18,7 +18,7 @@ configure({
 ## 2. Your first agent
 
 ```ts
-import { agent } from '@rokkhopper/ai-sdk';
+import { agent } from '@daedalus-ai-dev/ai-sdk';
 
 const response = await agent({
   instructions: 'You are a concise assistant.',
@@ -54,7 +54,7 @@ console.log(review.structured.issues);   // ['Too short', 'No context']
 Give an agent tools. The SDK runs the **agentic loop** automatically — it calls the model, executes tool calls, feeds results back, and repeats until the model returns a final answer.
 
 ```ts
-import { agent, defineTool } from '@rokkhopper/ai-sdk';
+import { agent, defineTool } from '@daedalus-ai-dev/ai-sdk';
 
 const weather = defineTool({
   name: 'get_weather',
@@ -82,7 +82,7 @@ console.log(response.text);
 Import `WebFetch` to let your agent browse URLs.
 
 ```ts
-import { agent, WebFetch } from '@rokkhopper/ai-sdk';
+import { agent, WebFetch } from '@daedalus-ai-dev/ai-sdk';
 
 const response = await agent({
   instructions: 'You summarize web pages in three bullet points.',
@@ -97,7 +97,7 @@ console.log(response.text);
 Use `Pipeline` to wire agents together sequentially.
 
 ```ts
-import { agent, Pipeline } from '@rokkhopper/ai-sdk';
+import { agent, Pipeline } from '@daedalus-ai-dev/ai-sdk';
 
 type Payload = { topic: string; draft: string; polished: string };
 

@@ -22,7 +22,7 @@ interface OpenRouterOptions {
 ## Usage
 
 ```ts
-import { openrouter, configure } from '@rokkhopper/ai-sdk';
+import { openrouter, configure } from '@daedalus-ai-dev/ai-sdk';
 
 configure({
   provider: openrouter({
@@ -95,7 +95,7 @@ const provider = openrouter({
 You can also instantiate the class directly if you prefer:
 
 ```ts
-import { OpenRouterProvider } from '@rokkhopper/ai-sdk';
+import { OpenRouterProvider } from '@daedalus-ai-dev/ai-sdk';
 
 const provider = new OpenRouterProvider({
   apiKey: process.env.OPENROUTER_API_KEY!,

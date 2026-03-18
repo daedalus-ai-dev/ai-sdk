@@ -20,7 +20,7 @@ type PipelineStep<T> = (
 ## Usage
 
 ```ts
-import { Pipeline } from '@rokkhopper/ai-sdk';
+import { Pipeline } from '@daedalus-ai-dev/ai-sdk';
 
 type Payload = { input: string; summary: string; translation: string };
 

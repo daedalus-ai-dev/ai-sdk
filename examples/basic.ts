@@ -1,5 +1,5 @@
 /**
- * Basic usage examples for @rokkhopper/ai-sdk
+ * Basic usage examples for @daedalus-ai-dev/ai-sdk
  *
  * Run with: npx tsx examples/basic.ts
  * (requires OPENROUTER_API_KEY env var)

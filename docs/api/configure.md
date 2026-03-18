@@ -21,7 +21,7 @@ function configure(options: {
 ## Example
 
 ```ts
-import { configure, openrouter } from '@rokkhopper/ai-sdk';
+import { configure, openrouter } from '@daedalus-ai-dev/ai-sdk';
 
 configure({
   provider: openrouter({

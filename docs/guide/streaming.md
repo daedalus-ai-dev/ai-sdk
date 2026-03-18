@@ -7,7 +7,7 @@ The SDK supports real-time streaming through async generators. Use streaming whe
 Call `.stream()` instead of `.prompt()`. It returns an `AsyncGenerator<string, StreamedAgentResponse>`:
 
 ```ts
-import { agent } from '@rokkhopper/ai-sdk';
+import { agent } from '@daedalus-ai-dev/ai-sdk';
 
 const stream = agent({
   instructions: 'You are a storyteller.',
@@ -73,7 +73,7 @@ Tool calls are handled transparently during streaming. When the model requests a
 From the caller's perspective, you simply see the final text chunks flow through:
 
 ```ts
-import { agent, WebFetch } from '@rokkhopper/ai-sdk';
+import { agent, WebFetch } from '@daedalus-ai-dev/ai-sdk';
 
 for await (const chunk of agent({
   instructions: 'You answer questions using the web.',
@@ -92,7 +92,7 @@ Stream agent responses to a browser via SSE:
 ```ts
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import { agent } from '@rokkhopper/ai-sdk';
+import { agent } from '@daedalus-ai-dev/ai-sdk';
 
 const app = new Hono();
 
@@ -114,7 +114,7 @@ Use the Web Streams API to stream from a Next.js Route Handler:
 
 ```ts
 // app/api/chat/route.ts
-import { agent } from '@rokkhopper/ai-sdk';
+import { agent } from '@daedalus-ai-dev/ai-sdk';
 
 export async function POST(req: Request) {
   const { message } = await req.json();

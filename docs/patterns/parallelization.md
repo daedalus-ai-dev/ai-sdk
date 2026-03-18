@@ -17,7 +17,7 @@ Input ───►│─► Agent B ─├─► Synthesizer → Output
 ## Basic example
 
 ```ts
-import { agent } from '@rokkhopper/ai-sdk';
+import { agent } from '@daedalus-ai-dev/ai-sdk';
 
 const code = `
 function processPayment(amount: number, card: string) {

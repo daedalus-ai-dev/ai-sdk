@@ -15,7 +15,7 @@ Input → Agent A → Agent B → Agent C → Output
 ## Implementation with `Pipeline`
 
 ```ts
-import { agent, Pipeline } from '@rokkhopper/ai-sdk';
+import { agent, Pipeline } from '@daedalus-ai-dev/ai-sdk';
 
 type Payload = {
   company: string;

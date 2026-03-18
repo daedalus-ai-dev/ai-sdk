@@ -7,7 +7,7 @@ An agent is a configured LLM caller that can use tools, maintain conversation hi
 The `agent()` helper is the quickest way to create a one-off or inline agent:
 
 ```ts
-import { agent } from '@rokkhopper/ai-sdk';
+import { agent } from '@daedalus-ai-dev/ai-sdk';
 
 const response = await agent({
   instructions: 'You are a senior TypeScript engineer.',
@@ -35,8 +35,8 @@ console.log(response.text);
 For reusable agents, implement the `AgentInterface`:
 
 ```ts
-import type { AgentInterface } from '@rokkhopper/ai-sdk';
-import { runAgent, WebFetch } from '@rokkhopper/ai-sdk';
+import type { AgentInterface } from '@daedalus-ai-dev/ai-sdk';
+import { runAgent, WebFetch } from '@daedalus-ai-dev/ai-sdk';
 
 class ResearchAssistant implements AgentInterface {
   instructions() {
@@ -149,7 +149,7 @@ Store `response.messages` in a database and replay them as `history` to create p
 You can override the global provider or model on a per-agent basis:
 
 ```ts
-import { agent, openrouter } from '@rokkhopper/ai-sdk';
+import { agent, openrouter } from '@daedalus-ai-dev/ai-sdk';
 
 // This agent uses a different provider entirely
 const response = await agent({

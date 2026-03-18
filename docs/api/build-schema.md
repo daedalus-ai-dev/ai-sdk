@@ -17,7 +17,7 @@ type SchemaFn = (schema: SchemaBuilder) => Record<string, PropertyBuilder>
 ## Example
 
 ```ts
-import { buildSchema } from '@rokkhopper/ai-sdk';
+import { buildSchema } from '@daedalus-ai-dev/ai-sdk';
 
 const jsonSchema = buildSchema((s) => ({
   name:   s.string().required(),

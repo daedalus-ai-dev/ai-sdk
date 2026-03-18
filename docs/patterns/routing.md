@@ -17,7 +17,7 @@ Input → Classifier → Route A (Specialist A)
 ## Basic example
 
 ```ts
-import { agent } from '@rokkhopper/ai-sdk';
+import { agent } from '@daedalus-ai-dev/ai-sdk';
 
 async function handleSupportQuery(query: string): Promise<string> {
   // Step 1: Classify the query (cheap model, fast)

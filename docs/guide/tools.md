@@ -7,7 +7,7 @@ Tools extend an agent's capabilities by letting the model call your code. When t
 Use `defineTool()` for inline tools:
 
 ```ts
-import { defineTool } from '@rokkhopper/ai-sdk';
+import { defineTool } from '@daedalus-ai-dev/ai-sdk';
 
 const calculator = defineTool({
   name: 'calculator',
@@ -25,8 +25,8 @@ const calculator = defineTool({
 For reusable tools, implement the `Tool` interface as a class:
 
 ```ts
-import type { Tool } from '@rokkhopper/ai-sdk';
-import type { PropertyBuilder } from '@rokkhopper/ai-sdk';
+import type { Tool } from '@daedalus-ai-dev/ai-sdk';
+import type { PropertyBuilder } from '@daedalus-ai-dev/ai-sdk';
 
 class DatabaseLookup implements Tool {
   constructor(private readonly db: Database) {}
@@ -56,7 +56,7 @@ class DatabaseLookup implements Tool {
 Pass tools in the `tools` array:
 
 ```ts
-import { agent } from '@rokkhopper/ai-sdk';
+import { agent } from '@daedalus-ai-dev/ai-sdk';
 
 const response = await agent({
   instructions: 'You are a data analyst. Use the database to answer questions.',
@@ -149,7 +149,7 @@ handle: async (input) => {
 The SDK ships with a `WebFetch` tool:
 
 ```ts
-import { WebFetch } from '@rokkhopper/ai-sdk';
+import { WebFetch } from '@daedalus-ai-dev/ai-sdk';
 
 const response = await agent({
   instructions: 'You summarize web pages.',

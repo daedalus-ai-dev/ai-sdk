@@ -25,7 +25,7 @@ function defineTool(options: {
 ## Example
 
 ```ts
-import { defineTool } from '@rokkhopper/ai-sdk';
+import { defineTool } from '@daedalus-ai-dev/ai-sdk';
 
 const getExchangeRate = defineTool({
   name: 'get_exchange_rate',
@@ -46,8 +46,8 @@ const getExchangeRate = defineTool({
 For class-based tools, implement `Tool` directly:
 
 ```ts
-import type { Tool } from '@rokkhopper/ai-sdk';
-import type { SchemaBuilder, PropertyBuilder } from '@rokkhopper/ai-sdk';
+import type { Tool } from '@daedalus-ai-dev/ai-sdk';
+import type { SchemaBuilder, PropertyBuilder } from '@daedalus-ai-dev/ai-sdk';
 
 class DatabaseSearch implements Tool {
   constructor(private readonly connection: DbConnection) {}

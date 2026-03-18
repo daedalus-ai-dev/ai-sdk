@@ -1,5 +1,5 @@
 {
-  "name": "@rokkhopper/ai-sdk",
+  "name": "@daedalus-ai-dev/ai-sdk",
   "version": "0.1.0",
   "description": "A TypeScript AI SDK for building agents, tools, and multi-agent workflows",
   "type": "module",

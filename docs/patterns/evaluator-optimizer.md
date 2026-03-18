@@ -19,7 +19,7 @@ Input → Generator → Evaluator → approved? ──Yes──► Output
 ## Basic example
 
 ```ts
-import { agent } from '@rokkhopper/ai-sdk';
+import { agent } from '@daedalus-ai-dev/ai-sdk';
 
 const topic = 'the importance of type safety in TypeScript';
 const MAX_ITERATIONS = 3;

@@ -27,7 +27,7 @@ export class WebFetch implements Tool {
     if (typeof url !== 'string') throw new Error('url must be a string');
 
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'rokkhopper-ai-sdk/0.1' },
+      headers: { 'User-Agent': 'daedalus-ai-sdk/0.1' },
     });
 
     const text = await res.text();

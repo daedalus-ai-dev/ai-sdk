@@ -7,7 +7,7 @@ A provider is the bridge between the SDK and an AI model API. The `AIProvider` i
 Call `configure()` once at startup:
 
 ```ts
-import { configure, openrouter } from '@rokkhopper/ai-sdk';
+import { configure, openrouter } from '@daedalus-ai-dev/ai-sdk';
 
 configure({
   provider: openrouter({
@@ -24,7 +24,7 @@ All `agent()` calls without an explicit `provider` or `model` will use these def
 [OpenRouter](https://openrouter.ai) is a unified API that routes to 200+ models. It is OpenAI-compatible.
 
 ```ts
-import { openrouter } from '@rokkhopper/ai-sdk';
+import { openrouter } from '@daedalus-ai-dev/ai-sdk';
 
 const provider = openrouter({
   apiKey: process.env.OPENROUTER_API_KEY!,
@@ -112,7 +112,7 @@ interface StreamChunk {
 Here is a complete example of a custom provider for any OpenAI-compatible API:
 
 ```ts
-import type { AIProvider, ChatRequest, ChatResponse, StreamChunk } from '@rokkhopper/ai-sdk';
+import type { AIProvider, ChatRequest, ChatResponse, StreamChunk } from '@daedalus-ai-dev/ai-sdk';
 
 class MyOpenAIProvider implements AIProvider {
   constructor(

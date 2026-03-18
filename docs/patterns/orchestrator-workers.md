@@ -17,7 +17,7 @@ Input → Orchestrator├─► Worker B (via tool) → Final Output
 ## Basic example
 
 ```ts
-import { agent, defineTool } from '@rokkhopper/ai-sdk';
+import { agent, defineTool } from '@daedalus-ai-dev/ai-sdk';
 
 // Worker tools — each wraps a specialised agent
 const analyseRequirementsTool = defineTool({

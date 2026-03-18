@@ -123,7 +123,7 @@ console.log(response.structured.confidence); // 0.99
 ### With tools
 
 ```ts
-import { WebFetch } from '@rokkhopper/ai-sdk';
+import { WebFetch } from '@daedalus-ai-dev/ai-sdk';
 
 const response = await agent({
   instructions: 'Answer questions using the web.',

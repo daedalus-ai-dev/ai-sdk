@@ -10,15 +10,15 @@
 ::: code-group
 
 ```sh [npm]
-npm install @rokkhopper/ai-sdk
+npm install @daedalus-ai-dev/ai-sdk
 ```
 
 ```sh [pnpm]
-pnpm add @rokkhopper/ai-sdk
+pnpm add @daedalus-ai-dev/ai-sdk
 ```
 
 ```sh [yarn]
-yarn add @rokkhopper/ai-sdk
+yarn add @daedalus-ai-dev/ai-sdk
 ```
 
 :::
@@ -70,7 +70,7 @@ node --env-file=.env dist/index.js
 Create a `hello.ts` file:
 
 ```ts
-import { agent, configure, openrouter } from '@rokkhopper/ai-sdk';
+import { agent, configure, openrouter } from '@daedalus-ai-dev/ai-sdk';
 
 configure({
   provider: openrouter({ apiKey: process.env.OPENROUTER_API_KEY! }),

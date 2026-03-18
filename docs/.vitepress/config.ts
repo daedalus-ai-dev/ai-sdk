@@ -17,7 +17,7 @@ export default defineConfig({
       {
         text: 'v0.1.0',
         items: [
-          { text: 'Changelog', link: 'https://github.com/rokkhopper/ai-sdk/releases' },
+          { text: 'Changelog', link: 'https://github.com/daedalus-ai-dev/ai-sdk/releases' },
         ],
       },
     ],
@@ -85,7 +85,7 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/rokkhopper/ai-sdk' },
+      { icon: 'github', link: 'https://github.com/daedalus-ai-dev/ai-sdk' },
     ],
 
     search: {
@@ -94,11 +94,11 @@ export default defineConfig({
 
     footer: {
       message: 'Released under the MIT License.',
-      copyright: 'Copyright © 2026 Rokkhopper',
+      copyright: 'Copyright © 2026 Daedalus AI',
     },
 
     editLink: {
-      pattern: 'https://github.com/rokkhopper/ai-sdk/edit/main/docs/:path',
+      pattern: 'https://github.com/daedalus-ai-dev/ai-sdk/edit/main/docs/:path',
       text: 'Edit this page on GitHub',
     },
   },

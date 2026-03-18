@@ -8,7 +8,7 @@ The schema builder provides a fluent API for defining JSON Schema objects. It is
 ## Basic usage
 
 ```ts
-import { agent } from '@rokkhopper/ai-sdk';
+import { agent } from '@daedalus-ai-dev/ai-sdk';
 
 const response = await agent({
   instructions: 'Extract product details from the text.',
@@ -127,7 +127,7 @@ schema: (s) => ({
 You can also call `buildSchema()` to get a raw `JsonSchemaObject`:
 
 ```ts
-import { buildSchema } from '@rokkhopper/ai-sdk';
+import { buildSchema } from '@daedalus-ai-dev/ai-sdk';
 
 const schema = buildSchema((s) => ({
   name: s.string().required(),

@@ -58,7 +58,7 @@ interface StreamChunk {
 
 ```ts
 import Anthropic from '@anthropic-ai/sdk';
-import type { AIProvider, ChatRequest, ChatResponse, StreamChunk } from '@rokkhopper/ai-sdk';
+import type { AIProvider, ChatRequest, ChatResponse, StreamChunk } from '@daedalus-ai-dev/ai-sdk';
 
 export class AnthropicProvider implements AIProvider {
   private readonly client: Anthropic;
@@ -129,7 +129,7 @@ export class AnthropicProvider implements AIProvider {
     }
   }
 
-  private mapMessages(messages: import('@rokkhopper/ai-sdk').Message[]) {
+  private mapMessages(messages: import('@daedalus-ai-dev/ai-sdk').Message[]) {
     // Map SDK Message[] to Anthropic MessageParam[]
     return messages
       .filter((m) => m.role !== 'system')
@@ -139,7 +139,7 @@ export class AnthropicProvider implements AIProvider {
       }));
   }
 
-  private mapStopReason(reason: string | null): import('@rokkhopper/ai-sdk').StopReason {
+  private mapStopReason(reason: string | null): import('@daedalus-ai-dev/ai-sdk').StopReason {
     switch (reason) {
       case 'tool_use': return 'tool_use';
       case 'max_tokens': return 'max_tokens';
@@ -152,7 +152,7 @@ export class AnthropicProvider implements AIProvider {
 Usage:
 
 ```ts
-import { configure } from '@rokkhopper/ai-sdk';
+import { configure } from '@daedalus-ai-dev/ai-sdk';
 import { AnthropicProvider } from './providers/anthropic.js';
 
 configure({
@@ -164,7 +164,7 @@ configure({
 ## Testing with a mock provider
 
 ```ts
-import type { AIProvider, ChatResponse } from '@rokkhopper/ai-sdk';
+import type { AIProvider, ChatResponse } from '@daedalus-ai-dev/ai-sdk';
 
 export function mockProvider(responses: Partial<ChatResponse>[]): AIProvider {
   let call = 0;

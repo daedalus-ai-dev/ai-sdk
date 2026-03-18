@@ -5,7 +5,7 @@ A built-in tool that fetches a URL and returns its text content. Allows agents t
 ## Usage
 
 ```ts
-import { agent, WebFetch } from '@rokkhopper/ai-sdk';
+import { agent, WebFetch } from '@daedalus-ai-dev/ai-sdk';
 
 const response = await agent({
   instructions: 'You summarize web pages concisely.',
@@ -17,7 +17,7 @@ console.log(response.text);
 
 ## Behaviour
 
-- Sends a `GET` request with `User-Agent: rokkhopper-ai-sdk/0.1`
+- Sends a `GET` request with `User-Agent: daedalus-ai-sdk/0.1`
 - Returns the raw response body as text (HTML, JSON, plain text, etc.)
 - Truncates to **10,000 characters** with a `… [truncated]` suffix to avoid overwhelming the context window
 - Throws on network errors (the SDK passes the error to the model)
@@ -43,7 +43,7 @@ The tool registers itself as:
 For more control, define your own web fetcher:
 
 ```ts
-import { defineTool } from '@rokkhopper/ai-sdk';
+import { defineTool } from '@daedalus-ai-dev/ai-sdk';
 
 const authenticatedFetch = defineTool({
   name: 'fetch_api',
