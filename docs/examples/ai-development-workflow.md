@@ -9,7 +9,10 @@
 A full development lifecycle driven by AI agents — from a raw feature request to clean, reviewed, passing code. Agents handle every step autonomously and escalate to a human only when they genuinely can't resolve something themselves.
 
 ```
-Feature Request
+projectPath + codingLanguage
+      │
+      ▼
+ Project Scaffolder  (init toolchain · install BDD runner · index GitNexus · smoke test)
       │
       ▼
  Product Manager ──── unclear? ──► [wait for user input]
@@ -59,9 +62,11 @@ ai-dev-workflow/
     ├── mcp.ts                         # connectMcp() — filesystem, GitNexus, GitHub
     ├── lsp.ts                         # LSP client — defineTool() wrappers (optional)
     ├── registry.ts                    # registerAgent() — all agents in one place
+    ├── scaffolder.ts                  # Project Scaffolder — init, BDD runner, GitNexus
     └── tools/
         ├── task-tools.ts              # defineTool() — task queue management
-        └── input-tools.ts             # defineTool() — stdin prompting
+        ├── input-tools.ts             # defineTool() — stdin prompting
+        └── shell-tools.ts             # defineTool() — run shell commands in projectPath
 ```
 
 **`package.json`**
@@ -457,6 +462,183 @@ export const askUserTool = defineTool({
     });
   },
 });
+```
+
+---
+
+## `src/tools/shell-tools.ts` — Shell execution tool
+
+The scaffolder needs to run real shell commands (`npm init`, `go mod tidy`, `flutter create`, etc.). This `defineTool()` wraps `execSync` scoped to the project directory and is **only given to the scaffolder** — no other agent needs it.
+
+```ts
+// src/tools/shell-tools.ts
+import { defineTool } from '@daedalus-ai-dev/ai-sdk';
+import { execSync } from 'child_process';
+import { state } from '../state.js';
+
+export const runCommandTool = defineTool({
+  name: 'run_command',
+  description: 'Run a shell command inside the target project directory. Use for package managers, project init, and tooling setup only. Do not use for file I/O — use the filesystem MCP tools for that.',
+  schema: (s) => ({
+    command: s.string().description('The shell command to run, e.g. "npm install --save-dev @cucumber/cucumber"').required(),
+    reason:  s.string().description('One-line explanation of why this command is needed').required(),
+  }),
+  handle: async (input) => {
+    console.log(`  $ ${input.command}  (${input.reason})`);
+    try {
+      const output = execSync(String(input.command), {
+        cwd: state.projectPath,
+        encoding: 'utf8',
+        stdio: 'pipe',
+      });
+      return output.trim() || '(no output)';
+    } catch (err: unknown) {
+      const msg = (err as { stderr?: string; message?: string }).stderr
+        ?? (err as { message?: string }).message
+        ?? String(err);
+      return `ERROR: ${msg.slice(0, 1000)}`;
+    }
+  },
+});
+```
+
+---
+
+## `src/scaffolder.ts` — Project Scaffolder
+
+Runs once at the very start of the workflow. It creates the project directory, initialises the language-specific toolchain, installs the BDD test runner for that language, sets up GitNexus, and runs a smoke test to confirm everything works before the Product Manager writes a single word.
+
+```ts
+// src/scaffolder.ts
+import { agent, defineTool } from '@daedalus-ai-dev/ai-sdk';
+import { anthropic } from '@daedalus-ai-dev/ai-sdk';
+import { execSync } from 'child_process';
+import * as fs from 'fs';
+import { state, log } from './state.js';
+import { runCommandTool } from './tools/shell-tools.js';
+import type { McpConnection } from '@daedalus-ai-dev/ai-sdk';
+import type { CodingLanguage } from './state.js';
+
+// ─── Per-language setup knowledge ────────────────────────────────────────────
+
+const scaffoldGuide: Record<CodingLanguage, string> = {
+  typescript: `
+Initialise a TypeScript project with BDD support:
+1. run_command: mkdir -p src features step-definitions
+2. run_command: npm init -y
+3. run_command: npm install --save-dev typescript tsx @types/node @cucumber/cucumber
+4. write_file: tsconfig.json  (strict: true, module: NodeNext, moduleResolution: NodeNext, outDir: dist)
+5. write_file: cucumber.json  ({ "require": ["step-definitions/**/*.ts"], "import": ["step-definitions/**/*.ts"] })
+6. run_command: npm pkg set scripts.test="cucumber-js"
+7. run_command: npm pkg set scripts.test:run="cucumber-js --exit"
+Smoke test: run_command: npx tsc --noEmit && echo OK
+`,
+  go: `
+Initialise a Go project with Godog (BDD) support:
+1. run_command: go mod init $(basename $PWD)
+2. run_command: go get github.com/cucumber/godog/cmd/godog@latest
+3. mkdir -p features internal cmd
+4. write_file: features/.gitkeep
+5. write_file: cmd/main.go  (minimal main package)
+6. write_file: Makefile  (test target: godog)
+Smoke test: run_command: go build ./...
+`,
+  flutter: `
+Initialise a Flutter project with BDD support:
+1. run_command: flutter create . --project-name=$(basename $PWD)
+2. run_command: flutter pub add --dev bdd_widget_test build_runner
+3. run_command: flutter pub get
+4. mkdir -p features test
+Smoke test: run_command: flutter analyze
+`,
+  python: `
+Initialise a Python project with Behave (BDD) support:
+1. run_command: python3 -m venv .venv
+2. run_command: .venv/bin/pip install behave pytest
+3. mkdir -p features/steps src
+4. write_file: pyproject.toml  (basic project metadata)
+5. write_file: features/environment.py  (empty behave environment file)
+Smoke test: run_command: .venv/bin/behave --dry-run 2>&1 || echo OK
+`,
+  rust: `
+Initialise a Rust project with Cucumber (BDD) support:
+1. run_command: cargo init
+2. run_command: cargo add --dev cucumber tokio
+3. mkdir -p tests/features
+4. write_file: tests/cucumber.rs  (minimal Cucumber test harness)
+5. write_file: Cargo.toml  (add [[test]] section for cucumber runner)
+Smoke test: run_command: cargo check
+`,
+};
+
+// ─── GitNexus index tool ──────────────────────────────────────────────────────
+
+const indexWithGitnexusTool = defineTool({
+  name: 'index_with_gitnexus',
+  description: 'Run "npx gitnexus analyze" in the project directory to build the codebase knowledge graph. Call this after the project structure is in place.',
+  schema: (s) => ({ _: s.string().description('Pass empty string').required() }),
+  handle: async () => {
+    try {
+      execSync('npx gitnexus analyze', {
+        cwd: state.projectPath,
+        encoding: 'utf8',
+        stdio: 'pipe',
+      });
+      return 'GitNexus index built successfully.';
+    } catch (err: unknown) {
+      const msg = (err as { stderr?: string; message?: string }).stderr ?? String(err);
+      return `GitNexus indexing failed: ${msg.slice(0, 500)}`;
+    }
+  },
+});
+
+const verifyProjectReadyTool = defineTool({
+  name: 'verify_project_ready',
+  description: 'Report the current state of the project directory — files present, key config files, and whether the smoke test passed.',
+  schema: (s) => ({ _: s.string().description('Pass empty string').required() }),
+  handle: async () => {
+    const files = fs.readdirSync(state.projectPath).slice(0, 30);
+    return JSON.stringify({ projectPath: state.projectPath, files }, null, 2);
+  },
+});
+
+// ─── Scaffolder agent ─────────────────────────────────────────────────────────
+
+export async function scaffoldProject(fsMcp: McpConnection): Promise<void> {
+  log('SCAFFOLDER', `${state.projectPath}  [${state.codingLanguage}]`);
+
+  fs.mkdirSync(state.projectPath, { recursive: true });
+
+  await agent({
+    provider: anthropic('claude-opus-4-6'),
+    instructions: `You are a project scaffolding engineer.
+Set up a new ${state.codingLanguage} project at: ${state.projectPath}
+
+Follow this guide exactly:
+${scaffoldGuide[state.codingLanguage]}
+
+After the project structure is ready:
+- Call index_with_gitnexus to build the codebase knowledge graph.
+- Call verify_project_ready and confirm the directory looks correct.
+- Report any errors clearly so the user can fix them before continuing.
+
+Use run_command for all shell operations.
+Use the filesystem MCP tools (write_file, create_directory) for file creation.
+Do NOT write source files that belong to the feature — only scaffolding and config.`,
+    tools: [
+      runCommandTool,
+      indexWithGitnexusTool,
+      verifyProjectReadyTool,
+      ...fsMcp.tools,   // write_file, create_directory, list_directory
+    ],
+    maxIterations: 30,
+  }).prompt(
+    `Scaffold a new ${state.codingLanguage} project at ${state.projectPath}. ` +
+    `Follow the guide, run the smoke test, then index with GitNexus.`
+  );
+
+  log('SCAFFOLDER', 'Project ready ✓');
+}
 ```
 
 ---
@@ -937,6 +1119,7 @@ import type { CodingLanguage } from './state.js';
 import { setupRegistry } from './registry.js';
 import { getFilesystemMcp, getGitnexusMcp } from './mcp.js';
 import { createLspTools } from './lsp.js';
+import { scaffoldProject } from './scaffolder.js';
 import {
   pmTool, threeAmigosTool, testAutomationTool,
   codingMachineTool, fixPlannerTool, developerTool,
@@ -1023,11 +1206,18 @@ export async function runDevelopmentWorkflow(
   state.projectPath     = projectPath;
   state.codingLanguage  = options.codingLanguage ?? 'typescript';
 
-  // Connect MCP servers and LSP in parallel (all scoped to the target project)
-  const [fsMcp, gitnexusMcp, lspTools] = await Promise.all([
-    getFilesystemMcp(projectPath),
+  // Connect filesystem MCP first — the scaffolder needs it before anything else
+  const fsMcp = await getFilesystemMcp(projectPath);
+
+  // ── Phase 0: scaffold the project ──────────────────────────────────────────
+  // Creates the directory, initialises the language toolchain, installs the
+  // BDD test runner, and runs `npx gitnexus analyze`. Must complete before
+  // the GitNexus and LSP servers can connect (they need an indexed project).
+  await scaffoldProject(fsMcp);
+
+  // Now connect the remaining servers (GitNexus index is ready)
+  const [gitnexusMcp, lspTools] = await Promise.all([
     getGitnexusMcp(projectPath),
-    // Returns [] if the language server binary is not installed — agents degrade gracefully
     createLspTools(projectPath, state.codingLanguage),
   ]);
 
@@ -1051,7 +1241,7 @@ Coding language: ${state.codingLanguage}
 
 All file paths passed to agents and tools must be absolute paths inside: ${projectPath}
 
-Phases:
+Phases (phase 0 already complete — project is scaffolded and indexed):
 1. product_manager          — Clarify requirements; write user story + acceptance criteria
 2. update_user_story        — Persist to state
 3. three_amigos_meeting     — Refine criteria via BDD meeting
@@ -1160,6 +1350,8 @@ await runDevelopmentWorkflow(
 | `connectMcp()` (GitNexus) | `mcp.ts` → coding-machine, developer, reviewer, refactorer | Codebase intelligence: query before planning, impact before editing, detect_changes after, rename safely |
 | `connectMcp()` (GitHub) | `mcp.ts` (optional) | `create_pull_request` at workflow end — no GitHub API client needed |
 | LSP (`createLspTools`) | `lsp.ts` | Live code intelligence from the language server: references, types, call hierarchy. Returns `[]` if not installed — agents degrade gracefully |
+| `scaffoldProject` | `scaffolder.ts` | Phase 0: creates directory, initialises language toolchain, installs BDD runner, indexes GitNexus. Must complete before any other agent runs |
+| `runCommandTool` (`defineTool`) | `tools/shell-tools.ts` | Scoped shell execution — only given to the scaffolder; no other agent has it |
 
 ### Tool usage per agent
 
