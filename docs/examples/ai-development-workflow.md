@@ -2,7 +2,9 @@
 
 **Patterns used:** [Prompt Chaining](../patterns/prompt-chaining) · [Orchestrator-Workers](../patterns/orchestrator-workers) · [Evaluator-Optimizer](../patterns/evaluator-optimizer)
 
-**SDK features:** `defineTool` · `Agent Registry` · `promptTemplate` · `slidingWindow` / `summarizing` · `connectMcp`
+**SDK features:** `defineTool` · `Agent Registry` · `promptTemplate` · `slidingWindow` / `tokenBudget` / `summarizing` · `connectMcp`
+
+**External MCP servers:** Filesystem · [GitNexus](https://github.com/abhigyanpatwari/GitNexus) (codebase intelligence) · GitHub
 
 A full development lifecycle driven by AI agents — from a raw feature request to clean, reviewed, passing code. Agents handle every step autonomously and escalate to a human only when they genuinely can't resolve something themselves.
 
@@ -19,21 +21,21 @@ Feature Request
  Test Automation  (writes .feature — tests fail by design)
       │
       ▼
- Coding Machine  (breaks into tasks: open → in_progress → done)
+ Coding Machine  (GitNexus query → plan tasks: open → in_progress → done)
       │
       ▼
- Developer ◄──────── loop: one task at a time ────────────────┐
-      │                                                        │
-      ▼                                                        │
- Test Runner ──── fail? ──► Coding Machine (fix tasks) ───────┘
+ Developer ◄──── loop: GitNexus impact → implement → detect_changes ────────┐
+      │                                                                       │
+      ▼                                                                       │
+ Test Runner ──── fail? ──► Coding Machine (fix tasks) ────────────────────┘
       │
   tests pass
       │
       ▼
- Code Reviewer  (SOLID · DRY · complexity)
+ Code Reviewer  (GitNexus context on changed symbols · SOLID · DRY)
       │
       ▼
- Refactorer  (applies review suggestions via MCP filesystem)
+ Refactorer  (GitNexus rename for safe symbol changes · write_file via MCP)
       │
       ▼
    Done ✓
@@ -45,6 +47,7 @@ Feature Request
 ai-dev-workflow/
 ├── package.json
 ├── tsconfig.json
+├── .gitnexus/                         # GitNexus index (run: npx gitnexus analyze)
 ├── features/                          # Generated Gherkin files (git-committed)
 │   └── password-reset.feature
 ├── step-definitions/                  # Cucumber step definitions (generated)
@@ -52,8 +55,8 @@ ai-dev-workflow/
 └── src/
     ├── index.ts                       # Entry point — orchestrates the full workflow
     ├── state.ts                       # Shared WorkflowState (blackboard)
-    ├── prompts.ts                     # promptTemplate definitions (multilingual)
-    ├── mcp.ts                         # connectMcp() — filesystem + GitHub MCP servers
+    ├── prompts.ts                     # promptTemplate definitions (per coding language)
+    ├── mcp.ts                         # connectMcp() — filesystem, GitNexus, GitHub
     ├── registry.ts                    # registerAgent() — all agents in one place
     └── tools/
         ├── task-tools.ts              # defineTool() — task queue management
@@ -69,7 +72,8 @@ ai-dev-workflow/
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts",
-    "test:features": "cucumber-js features/**/*.feature"
+    "test:features": "cucumber-js features/**/*.feature",
+    "gitnexus:index": "npx gitnexus analyze"
   },
   "dependencies": {
     "@daedalus-ai-dev/ai-sdk": "^0.1.4",
@@ -82,6 +86,11 @@ ai-dev-workflow/
   }
 }
 ```
+
+> **Before running:** index the codebase so GitNexus can answer questions about it:
+> ```bash
+> npx gitnexus analyze --embeddings
+> ```
 
 ---
 
@@ -103,9 +112,11 @@ export type Task = {
   implementation?: string;
 };
 
+export type CodingLanguage = 'typescript' | 'go' | 'flutter' | 'python' | 'rust';
+
 export type WorkflowState = {
   featureRequest: string;
-  language: string;                          // team language: 'en' | 'de' | 'fr' | 'es'
+  codingLanguage: CodingLanguage;            // target implementation language
   userStory: string;
   acceptanceCriteria: string[];
   featureFile: string;
@@ -117,7 +128,7 @@ export type WorkflowState = {
 
 export const state: WorkflowState = {
   featureRequest: '',
-  language: 'en',
+  codingLanguage: 'typescript',
   userStory: '',
   acceptanceCriteria: [],
   featureFile: '',
@@ -136,28 +147,56 @@ export function log(phase: string, message: string): void {
 
 ## `src/prompts.ts` — Prompt templates
 
-All agent system prompts are defined here with `promptTemplate`. The `language` variable lets every agent communicate in the team's language — useful for multilingual organisations.
+All agent system prompts live here, defined with `promptTemplate`. The `codingLanguage` variable injects language-specific style rules, idioms, and file conventions into every agent — so the same workflow produces idiomatic TypeScript, Go, Flutter, or Rust without any other changes.
 
 ```ts
 // src/prompts.ts
 import { promptTemplate } from '@daedalus-ai-dev/ai-sdk';
+import type { CodingLanguage } from './state.js';
 
-// Injected into every agent prompt when language !== 'en'
-const languageInstruction: Record<string, string> = {
-  en: '',
-  de: 'Respond in German (Deutsch). All output — user stories, criteria, code comments — in German.',
-  fr: 'Respond in French (Français). All output in French.',
-  es: 'Respond in Spanish (Español). All output in Spanish.',
+// ─── Per-language style instructions ─────────────────────────────────────────
+
+const codeStyle: Record<CodingLanguage, string> = {
+  typescript: `Target language: TypeScript (ESM, strict mode).
+- Use explicit types; never use \`any\`
+- Prefer \`async/await\` over callbacks; return \`Promise<T>\` explicitly
+- Use \`Result\`-style error handling (throw typed errors, not strings)
+- File extension: .ts; imports must include .js extension for ESM`,
+
+  go: `Target language: Go.
+- Follow standard Go project layout (cmd/, internal/, pkg/)
+- Return errors as the last value; never panic in library code
+- Use interfaces for abstraction; keep them small (1–3 methods)
+- Favour explicit over clever; no magic
+- File extension: .go; package names are lowercase, single word`,
+
+  flutter: `Target language: Dart / Flutter.
+- Use StatelessWidget where possible; StatefulWidget only when local state is needed
+- Prefer composition over inheritance for widgets
+- Use \`const\` constructors wherever possible for performance
+- Separate business logic from UI (BLoC or Riverpod pattern)
+- File extension: .dart; snake_case filenames`,
+
+  python: `Target language: Python 3.12+.
+- Use type hints on all public functions and classes
+- Follow PEP 8; use dataclasses or Pydantic for data models
+- Prefer \`pathlib\` over \`os.path\`; \`asyncio\` for I/O-bound work
+- File extension: .py; snake_case filenames and identifiers`,
+
+  rust: `Target language: Rust (2021 edition).
+- Use \`Result<T, E>\` for fallible operations; avoid \`unwrap()\` in library code
+- Derive \`Debug\`, \`Clone\`, \`PartialEq\` where useful
+- Prefer iterator combinators over explicit loops
+- File extension: .rs; snake_case filenames; modules mirror directory structure`,
 };
 
-export function lang(code: string): string {
-  return languageInstruction[code] ?? '';
+export function style(lang: CodingLanguage): string {
+  return codeStyle[lang];
 }
 
 // ─── Product Manager ──────────────────────────────────────────────────────────
 
 export const pmPrompt = promptTemplate`You are a senior product manager.
-${'languageInstruction'}
 Given a feature request, write a crisp user story and acceptance criteria.
 If the request is too vague to write testable criteria, set ready=false and list clarifying questions.
 User story format: "As a [persona], I want [goal], so that [benefit]."
@@ -166,19 +205,17 @@ Acceptance criteria: specific, testable, BDD-style "Given/When/Then" statements.
 // ─── Three Amigos ─────────────────────────────────────────────────────────────
 
 export const amigoPrompt = promptTemplate`You are a ${'role'} in a Three Amigos BDD meeting.
-${'languageInstruction'}
 ${'perspective'}
 For each question you raise, also try to answer it from your expertise.
 If you cannot answer it confidently, mark the answer as "NEEDS_PO".`;
 
 export const criteriaEnricherPrompt = promptTemplate`You refine BDD acceptance criteria based on meeting notes.
-${'languageInstruction'}
 Keep all existing criteria and add new ones discovered in the meeting.`;
 
 // ─── Test Automation ──────────────────────────────────────────────────────────
 
 export const testAutomationPrompt = promptTemplate`You are a test automation engineer writing Cucumber/Gherkin .feature files.
-${'languageInstruction'}
+${'codeStyle'}
 Rules:
 - Each acceptance criterion becomes one or more Scenario or Scenario Outline
 - Use concrete, realistic test data (not "foo", "bar", or "123")
@@ -188,58 +225,61 @@ Rules:
 
 // ─── Coding Machine ───────────────────────────────────────────────────────────
 
-export const codingMachinePrompt = promptTemplate`You are a senior TypeScript engineer planning a feature implementation.
-${'languageInstruction'}
+export const codingMachinePrompt = promptTemplate`You are a senior engineer planning a feature implementation.
+${'codeStyle'}
+Before planning, use gitnexus_query to search for existing related code so tasks don't duplicate work.
+Use gitnexus_context on any existing symbol that the new feature will touch.
 Break the feature into focused, independently implementable tasks.
 Each task maps to a single file or well-scoped module.
-Order by dependency: foundational code first, integration last.
-Each task must have a clear "done" definition.`;
+Order by dependency: foundational code first, integration last.`;
 
 export const fixPlannerPrompt = promptTemplate`You are a senior engineer triaging failing BDD tests.
-${'languageInstruction'}
-Analyse the failures and create specific fix tasks.
-Each task must reference the exact failing step and the file to change.`;
+${'codeStyle'}
+Use gitnexus_query to find the code related to failing steps before planning fixes.
+Each fix task must reference the exact failing step and the file to change.`;
 
 // ─── Developer ────────────────────────────────────────────────────────────────
 
-export const developerPrompt = promptTemplate`You are a senior TypeScript developer implementing a feature task by task.
-${'languageInstruction'}
-Use get_next_task to fetch the next open task.
-Use get_implemented_code to see what already exists — stay consistent.
-Use write_file to write the implementation to disk.
-Use complete_task to mark a task done.
-Write clean, idiomatic TypeScript with proper error handling.
-Continue until get_next_task reports no more open tasks.`;
+export const developerPrompt = promptTemplate`You are a senior developer implementing a feature task by task.
+${'codeStyle'}
+Workflow per task:
+1. get_next_task — claim the next open task
+2. gitnexus_impact — run impact analysis on any symbol you plan to change; abort if risk is HIGH/CRITICAL without user confirmation
+3. get_implemented_code — read what already exists; stay consistent
+4. write_file (MCP) — write the implementation
+5. complete_task — mark the task done
+6. gitnexus_detect_changes — verify your changes match the expected scope
+Repeat until get_next_task returns NO_TASKS.`;
 
 // ─── Code Reviewer ────────────────────────────────────────────────────────────
 
 export const reviewerPrompt = promptTemplate`You are a principal engineer doing a thorough code review.
-${'languageInstruction'}
+${'codeStyle'}
+Use gitnexus_context on each changed symbol to see all callers and usages before commenting.
 Review against:
 - SOLID principles (especially SRP and OCP)
 - DRY — flag duplication that should be extracted
 - Separation of concerns — business logic must not mix with I/O or framework code
-- Complexity — functions > 20 lines or cyclomatic complexity > 3 deserve scrutiny
+- Complexity — functions with cyclomatic complexity > 3 deserve scrutiny
 - Naming — names must reveal intent without a comment
-
-For each issue: what the problem is, why it matters, specific refactoring suggestion.
-Only flag real issues — not style preferences.`;
+For each issue: what it is, why it matters, specific refactoring suggestion.`;
 
 // ─── Refactorer ───────────────────────────────────────────────────────────────
 
 export const refactorerPrompt = promptTemplate`You are a principal engineer refactoring code based on review feedback.
-${'languageInstruction'}
-Apply every relevant suggestion from the review.
+${'codeStyle'}
+For symbol renames, ALWAYS use gitnexus_rename (dry_run first, then apply) — never find-and-replace.
+Use read_file (MCP) to read the current file before making changes.
+Use write_file (MCP) to save the refactored version.
 Do NOT change behaviour — only structure, naming, and organisation.
-Preserve all existing function signatures that are used externally.
-Use read_file to read the current file and write_file to save the refactored version.`;
+Preserve all existing function signatures that are used externally.`;
 ```
 
 ---
 
 ## `src/mcp.ts` — MCP connections
 
-The developer and refactorer agents use the filesystem MCP server to read and write source files — no raw `fs` module calls scattered across the codebase.
+Three MCP servers power the workflow: filesystem for file I/O, GitNexus for codebase intelligence, and GitHub for PR creation.
 
 ```ts
 // src/mcp.ts
@@ -247,32 +287,57 @@ import { connectMcp } from '@daedalus-ai-dev/ai-sdk';
 import type { McpConnection } from '@daedalus-ai-dev/ai-sdk';
 import * as path from 'path';
 
+// ─── Filesystem ───────────────────────────────────────────────────────────────
+
 let _fs: McpConnection | null = null;
 
 /**
- * Lazy singleton — connects on first use, reuses the connection afterwards.
- * The filesystem MCP server exposes read_file, write_file, list_directory, etc.
+ * Filesystem MCP server — exposes read_file, write_file, list_directory, etc.
+ * The developer and refactorer use this instead of raw fs module calls.
  */
 export async function getFilesystemMcp(): Promise<McpConnection> {
   if (_fs) return _fs;
-
   _fs = await connectMcp({
     type: 'stdio',
     command: 'npx',
     args: [
       '-y',
       '@modelcontextprotocol/server-filesystem',
-      path.resolve(process.cwd()),   // allow access to the project root
+      path.resolve(process.cwd()),
     ],
   });
-
   console.log('✓ Filesystem MCP connected');
   return _fs;
 }
 
+// ─── GitNexus ─────────────────────────────────────────────────────────────────
+
+let _gitnexus: McpConnection | null = null;
+
 /**
- * Optional: connect a GitHub MCP server for PR creation at the end
- * of the workflow. Requires GITHUB_TOKEN in the environment.
+ * GitNexus MCP server — exposes codebase intelligence tools:
+ *   gitnexus_query, gitnexus_context, gitnexus_impact,
+ *   gitnexus_detect_changes, gitnexus_rename, gitnexus_cypher
+ *
+ * Requires the index to be up to date: `npx gitnexus analyze`
+ */
+export async function getGitnexusMcp(): Promise<McpConnection> {
+  if (_gitnexus) return _gitnexus;
+  _gitnexus = await connectMcp({
+    type: 'stdio',
+    command: 'npx',
+    args: ['gitnexus', 'mcp'],
+    env: { GITNEXUS_REPO: process.cwd() },
+  });
+  console.log('✓ GitNexus MCP connected');
+  return _gitnexus;
+}
+
+// ─── GitHub ───────────────────────────────────────────────────────────────────
+
+/**
+ * GitHub MCP server — used at the end of the workflow to create a PR.
+ * Requires GITHUB_TOKEN in the environment.
  */
 export async function getGithubMcp(): Promise<McpConnection> {
   return connectMcp({
@@ -287,8 +352,6 @@ export async function getGithubMcp(): Promise<McpConnection> {
 ---
 
 ## `src/tools/task-tools.ts` — Task queue tools
-
-The developer agent uses these to atomically claim and complete tasks from the shared queue.
 
 ```ts
 // src/tools/task-tools.ts
@@ -309,10 +372,10 @@ export const getNextTaskTool = defineTool({
   },
 });
 
-/** Mark a task done and store its implementation in state. */
+/** Mark a task done and record it in state. */
 export const completeTaskTool = defineTool({
   name: 'complete_task',
-  description: 'Mark a task as done. Call after write_file has saved the implementation.',
+  description: 'Mark a task as done after its file has been written.',
   schema: (s) => ({
     taskId: s.string().description('ID of the completed task').required(),
     notes: s.string().description('One-line note on key implementation decisions').required(),
@@ -327,10 +390,10 @@ export const completeTaskTool = defineTool({
   },
 });
 
-/** Return all completed code for context when starting a new task. */
+/** Return all completed code for context before starting a new task. */
 export const getImplementedCodeTool = defineTool({
   name: 'get_implemented_code',
-  description: 'Return all already-implemented files for context. Read this before starting a new task to stay consistent.',
+  description: 'Return all already-implemented files for context. Read before starting a new task.',
   schema: (s) => ({ _: s.string().description('Pass empty string').required() }),
   handle: async () => {
     const done = state.tasks.filter((t) => t.status === 'done' && t.implementation);
@@ -339,12 +402,13 @@ export const getImplementedCodeTool = defineTool({
   },
 });
 
-/** Return the full task board for the coding machine to inspect. */
+/** Return the full task board. */
 export const getTaskBoardTool = defineTool({
   name: 'get_task_board',
   description: 'Return the current task board with all tasks and their statuses.',
   schema: (s) => ({ _: s.string().description('Pass empty string').required() }),
   handle: async () => {
+    if (state.tasks.length === 0) return 'Task board is empty.';
     return state.tasks
       .map((t: Task) => `[${t.status.toUpperCase().padEnd(11)}] ${t.id}: ${t.title} → ${t.filePath}`)
       .join('\n');
@@ -354,9 +418,7 @@ export const getTaskBoardTool = defineTool({
 
 ---
 
-## `src/tools/input-tools.ts` — Human-in-the-loop tool
-
-Agents call this when they need a human answer. It blocks until the user types a response.
+## `src/tools/input-tools.ts` — Human-in-the-loop
 
 ```ts
 // src/tools/input-tools.ts
@@ -368,7 +430,7 @@ export const askUserTool = defineTool({
   description: 'Ask the human a question and wait for their answer. Only use this when no agent can resolve the question.',
   schema: (s) => ({
     question: s.string().description('The question to ask').required(),
-    context: s.string().description('Brief context for why this question is being asked').required(),
+    context: s.string().description('Brief context for why this is being asked').required(),
   }),
   handle: async (input) => {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -387,41 +449,46 @@ export const askUserTool = defineTool({
 
 ## `src/registry.ts` — Agent registry
 
-All agents are registered at startup. The main orchestrator delegates via `agentTool()` — it never calls agent functions directly.
+All agents are registered here. GitNexus tools are passed to the agents that need codebase intelligence — the coding machine, developer, reviewer, and refactorer. The orchestrator delegates to all of them via `agentTool()`.
 
 ```ts
 // src/registry.ts
 import {
-  registerAgent,
-  agentTool,
-  agent,
-  slidingWindow,
-  summarizing,
-  tokenBudget,
+  registerAgent, agentTool, agent,
+  slidingWindow, summarizing, tokenBudget,
 } from '@daedalus-ai-dev/ai-sdk';
 import { anthropic } from '@daedalus-ai-dev/ai-sdk';
 import {
-  pmPrompt, amigoPrompt, criteriaEnricherPrompt, testAutomationPrompt,
-  codingMachinePrompt, fixPlannerPrompt, developerPrompt,
-  reviewerPrompt, refactorerPrompt, lang,
+  pmPrompt, amigoPrompt, criteriaEnricherPrompt,
+  testAutomationPrompt, codingMachinePrompt, fixPlannerPrompt,
+  developerPrompt, reviewerPrompt, refactorerPrompt, style,
 } from './prompts.js';
 import {
-  getNextTaskTool, completeTaskTool, getImplementedCodeTool, getTaskBoardTool,
+  getNextTaskTool, completeTaskTool,
+  getImplementedCodeTool, getTaskBoardTool,
 } from './tools/task-tools.js';
 import { askUserTool } from './tools/input-tools.js';
 import { state } from './state.js';
+import type { McpConnection } from '@daedalus-ai-dev/ai-sdk';
 
-const opus   = anthropic('claude-opus-4-6');
-const haiku  = anthropic('claude-haiku-4-5');
+const opus  = anthropic('claude-opus-4-6');
+const haiku = anthropic('claude-haiku-4-5');
 
-export function setupRegistry(): void {
+export function setupRegistry(
+  fsMcp: McpConnection,
+  gitnexusMcp: McpConnection,
+): void {
+  const fsTools        = fsMcp.tools;          // read_file, write_file, list_directory, …
+  const gitnexusTools  = gitnexusMcp.tools;    // gitnexus_query, gitnexus_impact, gitnexus_context,
+                                               // gitnexus_detect_changes, gitnexus_rename, …
+
+  const lang = style(state.codingLanguage);
 
   // ── Product Manager ──────────────────────────────────────────────────────────
   registerAgent('product-manager', agent({
     provider: haiku,
-    instructions: pmPrompt({ languageInstruction: lang(state.language) }),
+    instructions: pmPrompt({}),
     tools: [askUserTool],
-    // PM conversations stay short — sliding window is enough
     contextManager: slidingWindow(10),
   }));
 
@@ -430,7 +497,6 @@ export function setupRegistry(): void {
     provider: haiku,
     instructions: amigoPrompt({
       role: 'Business Analyst',
-      languageInstruction: lang(state.language),
       perspective: 'Focus on business rules, edge cases, user personas, and regulatory constraints.',
     }),
     tools: [askUserTool],
@@ -442,7 +508,6 @@ export function setupRegistry(): void {
     provider: haiku,
     instructions: amigoPrompt({
       role: 'Developer',
-      languageInstruction: lang(state.language),
       perspective: 'Focus on technical feasibility, data models, APIs, dependencies, and breaking changes.',
     }),
     tools: [askUserTool],
@@ -454,7 +519,6 @@ export function setupRegistry(): void {
     provider: haiku,
     instructions: amigoPrompt({
       role: 'Tester',
-      languageInstruction: lang(state.language),
       perspective: 'Focus on error scenarios, boundary values, data validation, and non-functional requirements.',
     }),
     tools: [askUserTool],
@@ -464,77 +528,91 @@ export function setupRegistry(): void {
   // ── Criteria Enricher ────────────────────────────────────────────────────────
   registerAgent('criteria-enricher', agent({
     provider: opus,
-    instructions: criteriaEnricherPrompt({ languageInstruction: lang(state.language) }),
+    instructions: criteriaEnricherPrompt({}),
   }));
 
   // ── Test Automation ──────────────────────────────────────────────────────────
   registerAgent('test-automation', agent({
     provider: opus,
-    instructions: testAutomationPrompt({ languageInstruction: lang(state.language) }),
+    instructions: testAutomationPrompt({ codeStyle: lang }),
   }));
 
   // ── Coding Machine ───────────────────────────────────────────────────────────
+  // Has gitnexus_query + gitnexus_context so it searches existing code
+  // before planning tasks — avoids duplicating work that already exists.
   registerAgent('coding-machine', agent({
     provider: opus,
-    instructions: codingMachinePrompt({ languageInstruction: lang(state.language) }),
-    tools: [getTaskBoardTool],
+    instructions: codingMachinePrompt({ codeStyle: lang }),
+    tools: [getTaskBoardTool, ...gitnexusTools],
   }));
 
   // ── Fix Planner ──────────────────────────────────────────────────────────────
   registerAgent('fix-planner', agent({
     provider: opus,
-    instructions: fixPlannerPrompt({ languageInstruction: lang(state.language) }),
-    tools: [getTaskBoardTool],
+    instructions: fixPlannerPrompt({ codeStyle: lang }),
+    tools: [getTaskBoardTool, ...gitnexusTools],
   }));
 
   // ── Developer ────────────────────────────────────────────────────────────────
-  // The developer loop is long-running — use summarizing() so older
-  // task context doesn't crowd out the current task.
+  // Long-running loop: summarizing() compresses completed task history
+  // so the current task always has a clean, focused context window.
+  // gitnexus_impact runs before every symbol change; gitnexus_detect_changes
+  // verifies scope after each task.
   registerAgent('developer', agent({
     provider: opus,
-    instructions: developerPrompt({ languageInstruction: lang(state.language) }),
-    tools: [getNextTaskTool, getImplementedCodeTool, completeTaskTool],
+    instructions: developerPrompt({ codeStyle: lang }),
+    tools: [
+      getNextTaskTool,
+      getImplementedCodeTool,
+      completeTaskTool,
+      ...fsTools,         // write_file, read_file (no raw fs calls)
+      ...gitnexusTools,   // gitnexus_impact, gitnexus_detect_changes
+    ],
     maxIterations: 50,
     contextManager: summarizing({
       provider: haiku,
       model: 'claude-haiku-4-5',
       keepRecent: 12,
-      summaryPrompt: 'Summarise completed implementation tasks, key decisions, and current progress:',
+      summaryPrompt: 'Summarise completed tasks, key decisions, and current progress. Be concise:',
     }),
   }));
 
   // ── Code Reviewer ────────────────────────────────────────────────────────────
+  // gitnexus_context lets the reviewer see all callers of a changed symbol
+  // before commenting — avoids flagging changes that are intentionally breaking.
   registerAgent('code-reviewer', agent({
     provider: opus,
-    instructions: reviewerPrompt({ languageInstruction: lang(state.language) }),
+    instructions: reviewerPrompt({ codeStyle: lang }),
+    tools: [...fsTools, ...gitnexusTools],
     contextManager: slidingWindow(20),
   }));
 
   // ── Refactorer ───────────────────────────────────────────────────────────────
+  // gitnexus_rename does a graph-aware multi-file rename instead of
+  // find-and-replace. write_file (MCP) saves results without raw fs.
   registerAgent('refactorer', agent({
     provider: opus,
-    instructions: refactorerPrompt({ languageInstruction: lang(state.language) }),
+    instructions: refactorerPrompt({ codeStyle: lang }),
+    tools: [...fsTools, ...gitnexusTools],
     contextManager: slidingWindow(15),
   }));
 }
 
-// ─── agentTool() delegates — used by the main orchestrator ───────────────────
+// ─── agentTool() delegates ────────────────────────────────────────────────────
 
-export const pmTool              = agentTool('product-manager',   { description: 'Write a user story from a feature request. Ask clarifying questions if needed.' });
-export const threeAmigosTool     = agentTool('amigo-ba',          { toolName: 'three_amigos_meeting', description: 'Run a Three Amigos BDD meeting for the current user story and return enriched acceptance criteria.' });
-export const testAutomationTool  = agentTool('test-automation',   { description: 'Write a Gherkin .feature file from the current user story and acceptance criteria.' });
-export const codingMachineTool   = agentTool('coding-machine',    { description: 'Plan implementation tasks for the current feature. Adds tasks to the shared task board.' });
-export const fixPlannerTool      = agentTool('fix-planner',       { description: 'Analyse failing test output and create fix tasks on the shared task board.' });
-export const developerTool       = agentTool('developer',         { description: 'Implement all open tasks on the task board one by one.' });
-export const codeReviewerTool    = agentTool('code-reviewer',     { description: 'Review the implemented code for design issues, complexity, and SOLID violations.' });
-export const refactorerTool      = agentTool('refactorer',        { description: 'Refactor the implemented files based on the code reviewer\'s feedback.' });
+export const pmTool             = agentTool('product-manager',  { description: 'Write a user story from a feature request. Ask clarifying questions if needed.' });
+export const threeAmigosTool    = agentTool('amigo-ba',         { toolName: 'three_amigos_meeting', description: 'Run a Three Amigos BDD meeting and return enriched acceptance criteria.' });
+export const testAutomationTool = agentTool('test-automation',  { description: 'Write a Gherkin .feature file from the current user story and acceptance criteria.' });
+export const codingMachineTool  = agentTool('coding-machine',   { description: 'Query existing code with GitNexus, then plan implementation tasks for the feature.' });
+export const fixPlannerTool     = agentTool('fix-planner',      { description: 'Analyse failing test output and create fix tasks.' });
+export const developerTool      = agentTool('developer',        { description: 'Implement all open tasks one by one, running impact analysis before each change.' });
+export const codeReviewerTool   = agentTool('code-reviewer',    { description: 'Review the implementation using GitNexus context on changed symbols.' });
+export const refactorerTool     = agentTool('refactorer',       { description: 'Refactor files based on review feedback. Use gitnexus_rename for symbol renames.' });
 ```
 
 ---
 
 ## `src/index.ts` — Main orchestrator
-
-The top-level orchestrator coordinates the entire workflow. It delegates every phase to the registered agents via tools and handles the test-runner loop in code (deterministic shell command — no need for an LLM here).
 
 ```ts
 // src/index.ts
@@ -543,24 +621,60 @@ import { execSync } from 'child_process';
 import { agent, defineTool } from '@daedalus-ai-dev/ai-sdk';
 import { anthropic } from '@daedalus-ai-dev/ai-sdk';
 import { state, log } from './state.js';
+import type { CodingLanguage } from './state.js';
 import { setupRegistry } from './registry.js';
-import { getFilesystemMcp } from './mcp.js';
+import { getFilesystemMcp, getGitnexusMcp } from './mcp.ts';
 import {
   pmTool, threeAmigosTool, testAutomationTool,
   codingMachineTool, fixPlannerTool, developerTool,
   codeReviewerTool, refactorerTool,
 } from './registry.js';
 
-// ─── Filesystem MCP tools (write/read files from agents) ─────────────────────
+// ─── State management tools (used by the orchestrator) ───────────────────────
 
-async function buildFileTools() {
-  const mcp = await getFilesystemMcp();
-  // The MCP server exposes read_file, write_file, list_directory, etc.
-  // We surface them as native tools so agents can use them transparently.
-  return mcp.tools;
-}
+const saveFeatureFileTool = defineTool({
+  name: 'save_feature_file',
+  description: 'Save generated Gherkin content to disk and record it in state.',
+  schema: (s) => ({
+    path: s.string().description('e.g. features/password-reset.feature').required(),
+    content: s.string().description('Full Gherkin .feature content').required(),
+  }),
+  handle: async (input) => {
+    fs.mkdirSync('features', { recursive: true });
+    fs.writeFileSync(String(input.path), String(input.content), 'utf8');
+    state.featureFile = String(input.content);
+    return `Feature file saved to ${input.path}`;
+  },
+});
 
-// ─── Test runner (deterministic — no LLM needed) ─────────────────────────────
+const updateUserStoryTool = defineTool({
+  name: 'update_user_story',
+  description: 'Persist the finalised user story and acceptance criteria in state.',
+  schema: (s) => ({
+    userStory: s.string().required(),
+    acceptanceCriteria: s.array().items(s.string().toSchema()).required(),
+  }),
+  handle: async (input) => {
+    state.userStory = String(input.userStory);
+    state.acceptanceCriteria = input.acceptanceCriteria as string[];
+    return 'User story and acceptance criteria saved.';
+  },
+});
+
+const getWorkflowContextTool = defineTool({
+  name: 'get_workflow_context',
+  description: 'Return the current workflow state snapshot.',
+  schema: (s) => ({ _: s.string().description('Pass empty string').required() }),
+  handle: async () => JSON.stringify({
+    codingLanguage: state.codingLanguage,
+    userStory: state.userStory,
+    acceptanceCriteria: state.acceptanceCriteria,
+    taskBoard: state.tasks.map((t) => ({ id: t.id, title: t.title, status: t.status, filePath: t.filePath })),
+    reviewComments: state.reviewComments.length,
+  }, null, 2),
+});
+
+// ─── Test runner (deterministic — no LLM) ────────────────────────────────────
 
 type TestResult = { passed: boolean; summary: string };
 
@@ -576,108 +690,68 @@ function runTests(featureFile: string): TestResult {
   }
 }
 
-const saveFeatureFileTool = defineTool({
-  name: 'save_feature_file',
-  description: 'Save the generated Gherkin content to disk and record it in workflow state.',
-  schema: (s) => ({
-    path: s.string().description('File path, e.g. features/password-reset.feature').required(),
-    content: s.string().description('Full Gherkin feature file content').required(),
-  }),
-  handle: async (input) => {
-    fs.mkdirSync('features', { recursive: true });
-    fs.writeFileSync(String(input.path), String(input.content), 'utf8');
-    state.featureFile = String(input.content);
-    return `Feature file saved to ${input.path}`;
-  },
-});
-
-const getWorkflowContextTool = defineTool({
-  name: 'get_workflow_context',
-  description: 'Return the current workflow state: user story, acceptance criteria, task board, and review comments.',
-  schema: (s) => ({ _: s.string().description('Pass empty string').required() }),
-  handle: async () => JSON.stringify({
-    userStory: state.userStory,
-    acceptanceCriteria: state.acceptanceCriteria,
-    taskBoard: state.tasks.map((t) => ({ id: t.id, title: t.title, status: t.status, filePath: t.filePath })),
-    reviewComments: state.reviewComments,
-  }, null, 2),
-});
-
-const updateUserStoryTool = defineTool({
-  name: 'update_user_story',
-  description: 'Store the finalised user story and acceptance criteria in workflow state.',
-  schema: (s) => ({
-    userStory: s.string().required(),
-    acceptanceCriteria: s.array().items(s.string().toSchema()).description('BDD acceptance criteria').required(),
-  }),
-  handle: async (input) => {
-    state.userStory = String(input.userStory);
-    state.acceptanceCriteria = (input.acceptanceCriteria as string[]);
-    return 'User story and acceptance criteria saved.';
-  },
-});
-
-// ─── Main orchestrator ────────────────────────────────────────────────────────
+// ─── Main workflow ────────────────────────────────────────────────────────────
 
 export async function runDevelopmentWorkflow(
   featureRequest: string,
-  options: { language?: string; featureFile?: string; maxFixAttempts?: number } = {},
+  options: {
+    codingLanguage?: CodingLanguage;
+    featureFile?: string;
+    maxFixAttempts?: number;
+  } = {},
 ): Promise<void> {
   const featureFilePath = options.featureFile ?? 'features/new-feature.feature';
   const maxFixAttempts  = options.maxFixAttempts ?? 3;
 
-  state.featureRequest = featureRequest;
-  state.language       = options.language ?? 'en';
+  state.featureRequest  = featureRequest;
+  state.codingLanguage  = options.codingLanguage ?? 'typescript';
 
-  // Register all agents with their context managers and prompt templates
-  setupRegistry();
+  // Connect MCP servers (lazy singletons — shared across all agents)
+  const [fsMcp, gitnexusMcp] = await Promise.all([
+    getFilesystemMcp(),
+    getGitnexusMcp(),
+  ]);
 
-  // Attach filesystem MCP tools to agents that need to write files
-  const fileTools = await buildFileTools();
+  // Register all agents (prompts, context managers, tools all wired here)
+  setupRegistry(fsMcp, gitnexusMcp);
 
-  log('WORKFLOW', `Starting: "${featureRequest}" [lang: ${state.language}]`);
+  log('WORKFLOW', `"${featureRequest}" [${state.codingLanguage}]`);
 
-  // ── Orchestrator agent ──────────────────────────────────────────────────────
-  // The orchestrator only coordinates — it delegates real work to specialist
-  // agents via agentTool() and uses state-management tools to pass data between phases.
+  // ── Orchestrator ──────────────────────────────────────────────────────────
   const orchestrator = agent({
     provider: anthropic('claude-opus-4-6'),
     instructions: `You are the workflow orchestrator for an AI-driven BDD development process.
-Execute each phase in order using the available tools. After each phase, use get_workflow_context
-to verify the state before proceeding. Phases:
+Execute each phase in order. Use get_workflow_context between phases to stay oriented.
 
-1. product_manager    — Write user story + acceptance criteria
-2. update_user_story  — Persist the output to workflow state
-3. three_amigos_meeting — Refine acceptance criteria via BDD meeting
-4. test_automation    — Write .feature file; save with save_feature_file
-5. coding_machine     — Plan implementation tasks
-6. developer          — Implement all tasks (uses filesystem MCP to write files)
-7. [test runner runs in code after this step — you do not call it]
-8. code_reviewer      — Review the implementation
-9. refactorer         — Apply review suggestions
+Phases:
+1. product_manager          — Clarify requirements; write user story + acceptance criteria
+2. update_user_story        — Persist to state
+3. three_amigos_meeting     — Refine criteria via BDD meeting
+4. test_automation          — Generate .feature file; persist with save_feature_file
+5. coding_machine           — Query existing code (GitNexus), plan implementation tasks
+6. developer                — Implement all tasks (impact analysis → write → detect_changes)
+[test runner runs here in code — you do not call it]
+7. code_reviewer            — Review using GitNexus context on changed symbols
+8. refactorer               — Apply suggestions; use gitnexus_rename for safe renames
 
-Do not skip phases. Use get_workflow_context between steps to stay oriented.`,
+Do not skip phases. Coding language is: ${state.codingLanguage}.`,
     tools: [
-      // Phase delegates
       pmTool, threeAmigosTool, testAutomationTool,
       codingMachineTool, fixPlannerTool, developerTool,
       codeReviewerTool, refactorerTool,
-      // State management
       updateUserStoryTool, saveFeatureFileTool, getWorkflowContextTool,
-      // Filesystem (from MCP) — passed to orchestrator so it can read outputs
-      ...fileTools,
     ],
     maxIterations: 40,
   });
 
-  // Run phases 1–6 (orchestrator drives; test runner runs in code between 6 and 7)
+  // Run phases 1–6
   await orchestrator.prompt(
-    `Feature request: "${featureRequest}"\n\nRun phases 1 through 6 (stop before code review). ` +
-    `The test runner will execute between the developer and reviewer phases.`
+    `Feature request: "${featureRequest}"\n\n` +
+    `Run phases 1 through 6 only (stop before code review — the test runner runs between phase 6 and 7).`
   );
 
-  // ── Test runner + fix loop (deterministic) ──────────────────────────────────
-  log('TEST RUNNER', `Running: ${featureFilePath}`);
+  // ── Test runner + fix loop ────────────────────────────────────────────────
+  log('TEST RUNNER', featureFilePath);
 
   for (let attempt = 1; attempt <= maxFixAttempts; attempt++) {
     const result = runTests(featureFilePath);
@@ -687,32 +761,32 @@ Do not skip phases. Use get_workflow_context between steps to stay oriented.`,
       break;
     }
 
-    console.log(`\n❌ Tests failed (attempt ${attempt}/${maxFixAttempts})`);
-    console.log(result.summary);
+    console.log(`\n❌ Tests failed (attempt ${attempt}/${maxFixAttempts})\n${result.summary}`);
 
     if (attempt === maxFixAttempts) {
-      console.log('\n⚠  Max fix attempts reached. Manual intervention needed.');
+      console.log('\n⚠  Max attempts reached. Manual intervention needed.');
       break;
     }
 
-    // Let the fix planner and developer handle the failures
     await orchestrator.prompt(
       `Tests failed:\n\n${result.summary}\n\n` +
       `Use fix_planner to plan fix tasks, then developer to implement them.`
     );
   }
 
-  // ── Phases 7–8: review + refactor ──────────────────────────────────────────
+  // ── Phases 7–8: review + refactor ────────────────────────────────────────
   await orchestrator.prompt(
-    `Tests are passing. Now run the code_reviewer, then the refactorer if needed. ` +
-    `Use get_workflow_context to see the current state first.`
+    `Tests are passing. Run code_reviewer (use GitNexus context on changed symbols), ` +
+    `then refactorer if needed (use gitnexus_rename for any symbol renames). ` +
+    `Use get_workflow_context first.`
   );
 
-  // ── Summary ─────────────────────────────────────────────────────────────────
+  // ── Summary ───────────────────────────────────────────────────────────────
   const done  = state.tasks.filter((t) => t.status === 'done').length;
   const total = state.tasks.length;
 
   console.log('\n\n✅  Workflow complete!');
+  console.log(`   Language:        ${state.codingLanguage}`);
   console.log(`   User Story:      ${state.userStory}`);
   console.log(`   Tasks:           ${done}/${total} done`);
   console.log(`   Feature file:    ${featureFilePath}`);
@@ -724,32 +798,47 @@ Do not skip phases. Use get_workflow_context between steps to stay oriented.`,
 
 await runDevelopmentWorkflow(
   'Users should be able to reset their password via email',
-  { language: 'en' },
+  { codingLanguage: 'typescript' },
 );
+
+// Other examples:
+// await runDevelopmentWorkflow('Add a health check endpoint', { codingLanguage: 'go' });
+// await runDevelopmentWorkflow('Show a loading spinner during network requests', { codingLanguage: 'flutter' });
+// await runDevelopmentWorkflow('Parse and validate incoming webhook payloads', { codingLanguage: 'python' });
 ```
 
 ---
 
-## SDK features at a glance
+## SDK features and MCP servers at a glance
 
-| SDK feature | Where it's used | Why |
+| Feature | Where | Why |
 |---|---|---|
-| `defineTool()` | `task-tools.ts`, `input-tools.ts`, `index.ts` | Typed tool contracts; input validated before agents touch state |
-| `Agent Registry` | `registry.ts` | One place to define every agent; orchestrator delegates with `agentTool()` — never calls agents directly |
-| `promptTemplate` | `prompts.ts` | System prompts are typed, reusable, and language-aware — no scattered template strings |
+| `defineTool()` | `task-tools.ts`, `input-tools.ts`, `index.ts` | Typed contracts; input validated before any agent touches shared state |
+| `Agent Registry` | `registry.ts` | One place for all agents; orchestrator delegates via `agentTool()` — never imports agent functions directly |
+| `promptTemplate` | `prompts.ts` | System prompts are typed; `codeStyle` injects language-specific idioms, file conventions, and error handling patterns into every agent |
 | `slidingWindow` | PM, reviewer, refactorer | Short-lived agents; older context never helps |
-| `tokenBudget` | Three Amigos | BDD meetings grow unpredictably — cap by estimated tokens |
-| `summarizing` | Developer | Long-running loop; old task history compresses, keeping the current task in focus |
-| `connectMcp()` | `mcp.ts` | Filesystem and GitHub servers expose `read_file`, `write_file`, `create_pull_request` as native tools without hand-rolling wrappers |
+| `tokenBudget` | Three Amigos | BDD meetings grow unpredictably; cap by estimated token count |
+| `summarizing` | Developer | Long-running loop; `claude-haiku-4-5` compresses completed task history so the current task always gets a clean context |
+| `connectMcp()` (filesystem) | `mcp.ts` → developer, refactorer | File I/O without raw `fs` calls scattered across the codebase |
+| `connectMcp()` (GitNexus) | `mcp.ts` → coding-machine, developer, reviewer, refactorer | Codebase intelligence: query before planning, impact before editing, detect_changes after, rename safely |
+| `connectMcp()` (GitHub) | `mcp.ts` (optional) | `create_pull_request` at workflow end — no GitHub API client needed |
+
+### GitNexus tool usage per agent
+
+| Agent | GitNexus tools used | Purpose |
+|---|---|---|
+| Coding Machine | `gitnexus_query`, `gitnexus_context` | Find existing code before planning; avoid duplicate work |
+| Fix Planner | `gitnexus_query` | Locate code related to failing steps |
+| Developer | `gitnexus_impact`, `gitnexus_detect_changes` | Check blast radius before editing; verify scope after |
+| Code Reviewer | `gitnexus_context` | See all callers of a changed symbol before commenting |
+| Refactorer | `gitnexus_rename` | Graph-aware multi-file rename — not find-and-replace |
 
 ## Why this structure works
 
-**Blackboard pattern.** `WorkflowState` is the single source of truth. Agents don't hand off data to each other — they read from and write to the shared state. The orchestrator never needs to parse agent output to extract data; it uses dedicated state tools (`update_user_story`, `save_feature_file`) for that.
+**`codingLanguage` as a first-class parameter.** Every agent system prompt receives the same language-specific style block via `promptTemplate`. Changing from TypeScript to Go is a one-line change at the entry point — every agent immediately writes idiomatic Go, including the test automation engineer, coding machine, and refactorer.
 
-**Human escalation is a tool, not a branch.** `ask_user` is a `defineTool()` call that any agent can invoke. Agents try to resolve questions among themselves first; the tool blocks on stdin only when truly needed. A well-specified feature may complete with zero interruptions.
+**GitNexus closes the feedback loop on existing code.** Without it, the coding machine plans tasks that duplicate existing functions. With it, `gitnexus_query` finds related code before planning, `gitnexus_impact` prevents silent breakage during implementation, and `gitnexus_rename` makes the refactorer's symbol changes safe across the entire call graph.
 
-**The test runner is not an agent.** Running `cucumber-js` is deterministic. There's no reason to involve an LLM. The fix loop (plan → implement → re-run) is triggered in code based on the exit code.
+**MCP servers as shared infrastructure.** Both the filesystem and GitNexus servers are lazy singletons connected once and passed into `setupRegistry()`. Every agent that needs them receives the live tool list — no wrapper code, no duplication.
 
-**`agentTool()` keeps the orchestrator thin.** The orchestrator doesn't know how the developer implements code or how the reviewer assesses it. It just calls `developer({ task: '...' })` and trusts the result. Swapping out an agent (e.g. replacing the reviewer with a stricter one) requires changing one line in `registry.ts`.
-
-**Context managers match agent lifetimes.** The developer loop is unbounded — `summarizing()` keeps the current task in focus while compressing completed history. Short-lived agents (PM, reviewer) use `slidingWindow` to stay lean.
+**The test runner is not an agent.** `cucumber-js` exit code is the ground truth. There's no benefit to asking an LLM whether tests passed. The fix loop (plan → implement → re-run) is triggered in code, which makes the control flow explicit and auditable.
