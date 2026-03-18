@@ -9,6 +9,7 @@ Complete, real-world examples you can copy and run. Each example demonstrates on
 | [Competitive Analysis](./competitive-analysis) | Parallelization | Analyses multiple competitors simultaneously; synthesises into a brief |
 | [Automated Code Review](./code-review-agent) | Orchestrator-Workers | Orchestrator reads a diff and delegates security, perf, and style reviews |
 | [Cover Letter Generator](./cover-letter-generator) | Evaluator-Optimizer | Drafts a cover letter; evaluates against a rubric; rewrites until approved |
+| [AI Development Workflow](./ai-development-workflow) | Chaining + Orchestration + Eval | Full BDD cycle: feature request → user story → three amigos → tests → implementation → review |
 
 ## Running the examples
 
