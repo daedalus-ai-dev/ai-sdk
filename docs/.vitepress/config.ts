@@ -68,6 +68,7 @@ export default defineConfig({
             { text: 'Competitive Analysis', link: '/examples/competitive-analysis' },
             { text: 'Code Review Agent', link: '/examples/code-review-agent' },
             { text: 'Cover Letter Generator', link: '/examples/cover-letter-generator' },
+            { text: 'AI Development Workflow', link: '/examples/ai-development-workflow' },
           ],
         },
       ],
