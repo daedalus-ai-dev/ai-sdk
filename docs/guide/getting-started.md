@@ -1,6 +1,6 @@
 # Getting Started
 
-Rokkhopper AI SDK is a TypeScript library for building LLM-powered agents, tools, and multi-agent workflows. It is inspired by [Laravel's AI SDK](https://laravel.com/ai) and the patterns described in [Building Effective Agents](https://www.anthropic.com/engineering/building-effective-agents) by Anthropic.
+Daedalus AI SDK is a TypeScript library for building LLM-powered agents, tools, and multi-agent workflows. It is inspired by [Laravel's AI SDK](https://laravel.com/ai) and the patterns described in [Building Effective Agents](https://www.anthropic.com/engineering/building-effective-agents) by Anthropic.
 
 ## What you can build
 

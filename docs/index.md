@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: "Rokkhopper AI SDK"
+  name: "Daedalus AI SDK"
   text: "Build agents that think, act, and collaborate"
   tagline: A TypeScript-first SDK for crafting LLM agents, custom tools, and multi-agent workflows — provider-agnostic and production-ready.
   actions:
