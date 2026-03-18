@@ -60,3 +60,7 @@ export type { OpenRouterOptions } from './providers/openrouter.js';
 
 // ─── Built-in tools ───────────────────────────────────────────────────────────
 export { WebFetch } from './tools/web-fetch.js';
+
+// ─── MCP ──────────────────────────────────────────────────────────────────────
+export { connectMcp, McpConnection } from './mcp/index.js';
+export type { McpServerConfig, McpStdioConfig, McpHttpConfig } from './mcp/index.js';

@@ -14,13 +14,22 @@ export interface Tool {
   handle(input: Record<string, unknown>): Promise<string> | string;
 }
 
+// Internal symbol used by MCP adapter tools to bypass the schema builder
+export const RAW_INPUT_SCHEMA = Symbol('rawInputSchema');
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 export function toolToDefinition(tool: Tool): ToolDefinition {
+  // MCP adapter tools carry a pre-built JSON Schema — skip the builder
+  const raw = (tool as unknown as Record<symbol, unknown>)[RAW_INPUT_SCHEMA];
+  const inputSchema = raw !== undefined
+    ? raw as JsonSchemaObject
+    : buildSchema(tool.schema.bind(tool) as SchemaFn) as JsonSchemaObject;
+
   return {
     name: tool.name(),
     description: tool.description(),
-    inputSchema: buildSchema(tool.schema.bind(tool) as SchemaFn) as JsonSchemaObject,
+    inputSchema,
   };
 }
 
