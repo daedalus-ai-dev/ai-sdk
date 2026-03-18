@@ -69,6 +69,7 @@ export default defineConfig({
             { text: 'defineTool()', link: '/api/define-tool' },
             { text: 'buildSchema()', link: '/api/build-schema' },
             { text: 'Prompt Templates', link: '/api/prompt-templates' },
+            { text: 'Context Window', link: '/api/context-manager' },
           ],
         },
         {

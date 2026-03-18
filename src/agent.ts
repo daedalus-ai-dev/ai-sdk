@@ -12,6 +12,7 @@ import type {
 import type { Tool } from './tool.js';
 import { toolToDefinition } from './tool.js';
 import { buildSchema } from './schema.js';
+import type { ContextManager } from './context-manager.js';
 
 // ─── Agent interface (for class-based agents) ─────────────────────────────────
 
@@ -33,6 +34,8 @@ export interface AgentConfig {
   maxIterations?: number;
   temperature?: number;
   maxTokens?: number;
+  /** Strategy for managing conversation history length. */
+  contextManager?: ContextManager;
 }
 
 // ─── Default provider registry ────────────────────────────────────────────────
@@ -56,6 +59,7 @@ class AgentRunner {
   private readonly maxIterations: number;
   private readonly temperature?: number;
   private readonly maxTokens?: number;
+  private readonly contextManager?: ContextManager;
 
   constructor(config: AgentConfig) {
     this.provider = config.provider ?? defaultProvider ?? null;
@@ -66,6 +70,7 @@ class AgentRunner {
     this.maxIterations = config.maxIterations ?? 10;
     this.temperature = config.temperature;
     this.maxTokens = config.maxTokens;
+    this.contextManager = config.contextManager;
   }
 
   private resolveProvider(): AIProvider {
@@ -100,9 +105,13 @@ class AgentRunner {
     while (iterations < this.maxIterations) {
       iterations++;
 
+      const contextMessages = this.contextManager
+        ? await this.contextManager.manage(messages)
+        : messages;
+
       const request: ChatRequest = {
         model: this.model,
-        messages,
+        messages: contextMessages,
         systemPrompt: this.instructions,
         tools: toolDefs.length > 0 ? toolDefs : undefined,
         responseFormat: responseSchema && !toolDefs.length
@@ -202,9 +211,13 @@ class AgentRunner {
     while (iterations < this.maxIterations) {
       iterations++;
 
+      const contextMessages = this.contextManager
+        ? await this.contextManager.manage(messages)
+        : messages;
+
       const request: ChatRequest = {
         model: this.model,
-        messages,
+        messages: contextMessages,
         systemPrompt: this.instructions,
         tools: toolDefs.length > 0 ? toolDefs : undefined,
         temperature: this.temperature,
