@@ -13,6 +13,7 @@ export default defineConfig({
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'Patterns', link: '/patterns/overview' },
+      { text: 'Examples', link: '/examples/' },
       { text: 'API', link: '/api/agent' },
       {
         text: 'v0.1.0',
@@ -54,6 +55,19 @@ export default defineConfig({
             { text: 'Parallelization', link: '/patterns/parallelization' },
             { text: 'Orchestrator-Workers', link: '/patterns/orchestrator-workers' },
             { text: 'Evaluator-Optimizer', link: '/patterns/evaluator-optimizer' },
+          ],
+        },
+      ],
+      '/examples/': [
+        {
+          text: 'Examples',
+          items: [
+            { text: 'Overview', link: '/examples/' },
+            { text: 'Blog Post Pipeline', link: '/examples/blog-post-pipeline' },
+            { text: 'Support Router', link: '/examples/support-router' },
+            { text: 'Competitive Analysis', link: '/examples/competitive-analysis' },
+            { text: 'Code Review Agent', link: '/examples/code-review-agent' },
+            { text: 'Cover Letter Generator', link: '/examples/cover-letter-generator' },
           ],
         },
       ],
