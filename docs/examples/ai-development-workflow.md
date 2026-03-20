@@ -1032,15 +1032,15 @@ export function setupRegistry(
   const lang = style(state.codingLanguage);
 
   // ── Product Manager ──────────────────────────────────────────────────────────
-  registerAgent('product-manager', agent({
+  registerAgent('product-manager', {
     provider: haiku,
     instructions: pmPrompt({}),
     tools: [askUserTool],
     contextManager: slidingWindow(10),
-  }));
+  });
 
   // ── Three Amigos — Business Analyst ──────────────────────────────────────────
-  registerAgent('amigo-ba', agent({
+  registerAgent('amigo-ba', {
     provider: haiku,
     instructions: amigoPrompt({
       role: 'Business Analyst',
@@ -1048,10 +1048,10 @@ export function setupRegistry(
     }),
     tools: [askUserTool],
     contextManager: tokenBudget(4000),
-  }));
+  });
 
   // ── Three Amigos — Developer ─────────────────────────────────────────────────
-  registerAgent('amigo-dev', agent({
+  registerAgent('amigo-dev', {
     provider: haiku,
     instructions: amigoPrompt({
       role: 'Developer',
@@ -1059,10 +1059,10 @@ export function setupRegistry(
     }),
     tools: [askUserTool],
     contextManager: tokenBudget(4000),
-  }));
+  });
 
   // ── Three Amigos — Tester ────────────────────────────────────────────────────
-  registerAgent('amigo-tester', agent({
+  registerAgent('amigo-tester', {
     provider: haiku,
     instructions: amigoPrompt({
       role: 'Tester',
@@ -1070,42 +1070,42 @@ export function setupRegistry(
     }),
     tools: [askUserTool],
     contextManager: tokenBudget(4000),
-  }));
+  });
 
   // ── Criteria Enricher ────────────────────────────────────────────────────────
-  registerAgent('criteria-enricher', agent({
+  registerAgent('criteria-enricher', {
     provider: opus,
     instructions: criteriaEnricherPrompt({}),
-  }));
+  });
 
   // ── Test Automation ──────────────────────────────────────────────────────────
-  registerAgent('test-automation', agent({
+  registerAgent('test-automation', {
     provider: opus,
     instructions: testAutomationPrompt({ codeStyle: lang }),
-  }));
+  });
 
   // ── Coding Machine ───────────────────────────────────────────────────────────
   // gitnexus_query + gitnexus_context finds existing code before planning.
   // lsp_workspace_symbol lets it check if a function already exists by exact name.
-  registerAgent('coding-machine', agent({
+  registerAgent('coding-machine', {
     provider: opus,
     instructions: codingMachinePrompt({ codeStyle: lang }),
     tools: [getTaskBoardTool, ...gitnexusTools, ...lspTools],
-  }));
+  });
 
   // ── Fix Planner ──────────────────────────────────────────────────────────────
-  registerAgent('fix-planner', agent({
+  registerAgent('fix-planner', {
     provider: opus,
     instructions: fixPlannerPrompt({ codeStyle: lang }),
     tools: [getTaskBoardTool, ...gitnexusTools],
-  }));
+  });
 
   // ── Developer ────────────────────────────────────────────────────────────────
   // Long-running loop: summarizing() compresses completed task history.
   // gitnexus_impact before edits; gitnexus_detect_changes after.
   // lsp_hover checks type signatures while writing;
   // lsp_find_references verifies no call sites are missed before changing a signature.
-  registerAgent('developer', agent({
+  registerAgent('developer', {
     provider: opus,
     instructions: developerPrompt({ codeStyle: lang }),
     tools: [
@@ -1123,42 +1123,42 @@ export function setupRegistry(
       keepRecent: 12,
       summaryPrompt: 'Summarise completed tasks, key decisions, and current progress. Be concise:',
     }),
-  }));
+  });
 
   // ── Code Reviewer ────────────────────────────────────────────────────────────
   // gitnexus_context sees all callers of a changed symbol.
   // lsp_incoming_calls gives the precise call graph from the live language server —
   // useful when the GitNexus index is slightly stale.
   // lsp_document_symbols lists all symbols in a changed file for a quick overview.
-  registerAgent('code-reviewer', agent({
+  registerAgent('code-reviewer', {
     provider: opus,
     instructions: reviewerPrompt({ codeStyle: lang }),
     tools: [...fsTools, ...gitnexusTools, ...lspTools],
     contextManager: slidingWindow(20),
-  }));
+  });
 
   // ── Refactorer ───────────────────────────────────────────────────────────────
   // gitnexus_rename for graph-aware multi-file rename.
   // lsp_find_references for a live cross-check that all usages are accounted for
   // before committing to a rename or signature change.
-  registerAgent('refactorer', agent({
+  registerAgent('refactorer', {
     provider: opus,
     instructions: refactorerPrompt({ codeStyle: lang }),
     tools: [...fsTools, ...gitnexusTools, ...lspTools],
     contextManager: slidingWindow(15),
-  }));
+  });
 
   // ── Spec Writer ──────────────────────────────────────────────────────────────
   // Last agent to run. Reads the existing SPEC.md if present (read_file),
   // merges the current feature's story, criteria, key files, and decisions,
   // then writes the updated file (write_file). Future workflow runs start
   // by reading SPEC.md so they understand the project's history.
-  registerAgent('spec-writer', agent({
+  registerAgent('spec-writer', {
     provider: opus,
     instructions: specWriterPrompt({ codeStyle: lang }),
     tools: [...fsTools],   // read_file + write_file only — no code navigation needed
     contextManager: slidingWindow(10),
-  }));
+  });
 }
 
 // ─── agentTool() delegates ────────────────────────────────────────────────────
