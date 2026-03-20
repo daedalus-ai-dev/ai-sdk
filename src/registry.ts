@@ -96,8 +96,10 @@ export function agentTool(name: string, options?: AgentToolOptions) {
       task: s.string().description('The task or question to send to the agent').required(),
     }),
     async handle({ task }) {
+      console.log(`\n[agent:${name}] starting`);
       const runner = getAgent(name);
       const response = await runner.prompt(task as string);
+      console.log(`[agent:${name}] done`);
       return response.text;
     },
   });
