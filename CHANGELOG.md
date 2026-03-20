@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.7](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.6...ai-sdk-v0.1.7) (2026-03-20)
+
+
+### Features
+
+* **registry:** log agent start and done in agentTool ([156617a](https://github.com/daedalus-ai-dev/ai-sdk/commit/156617a86bb635c5f94a0b05b93ce9a1881b6c82))
+
+
+### Documentation
+
+* fix registerAgent examples — pass AgentConfig directly, not agent() ([e35d00a](https://github.com/daedalus-ai-dev/ai-sdk/commit/e35d00aca5a3663c2e994f94221afcaf5e3d24f0))
+
 ## [0.1.6](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.5...ai-sdk-v0.1.6) (2026-03-18)
 
 
