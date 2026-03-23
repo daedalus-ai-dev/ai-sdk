@@ -40,13 +40,13 @@ interface AgentConfig {
 
 ## `AgentRunner.prompt<T>(input, history?)`
 
-Runs the agent and returns a complete response.
+Runs the agent and returns a complete response, or an `InterruptedResponse` if a tool threw an [`InterruptError`](./checkpoint).
 
 ```ts
 async prompt<T = unknown>(
   input: string,
   history?: Message[],
-): Promise<AgentResponse<T>>
+): Promise<AgentResponse<T> | InterruptedResponse>
 ```
 
 **Parameters**
@@ -56,7 +56,7 @@ async prompt<T = unknown>(
 | `input` | `string` | The user message / task |
 | `history` | `Message[]` | Prior conversation messages (optional) |
 
-**Returns** `AgentResponse<T>`
+**Returns** `AgentResponse<T> | InterruptedResponse`
 
 ```ts
 interface AgentResponse<T = unknown> {
@@ -64,7 +64,21 @@ interface AgentResponse<T = unknown> {
   structured: T;          // Parsed JSON (only when schema is set)
   usage: Usage;           // Accumulated token usage across all iterations
   messages: Message[];    // Full conversation including history
+  checkpoint: Checkpoint; // Serialisable state — pass to resume() to continue later
 }
+```
+
+Use [`isInterrupted(result)`](./checkpoint#isinterruptedresult) to narrow the union, or [`assertComplete(result)`](./checkpoint#assertcompleteresult) to throw if interrupted.
+
+## `AgentRunner.resume(checkpoint, answer)`
+
+Continues a paused run by injecting the user's answer as the tool result and resuming the loop. See [Checkpointing](./checkpoint) for full details.
+
+```ts
+async resume(
+  checkpoint: Checkpoint & { pendingToolUseId: string },
+  answer: string,
+): Promise<AgentResponse<T> | InterruptedResponse>
 ```
 
 ## `AgentRunner.stream(input, history?)`
