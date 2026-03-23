@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.8](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.7...ai-sdk-v0.1.8) (2026-03-23)
+
+
+### Features
+
+* checkpointing and interrupt support ([#4](https://github.com/daedalus-ai-dev/ai-sdk/issues/4)) ([09ab681](https://github.com/daedalus-ai-dev/ai-sdk/commit/09ab6819bc3d88ed18331b6b9d66ef7b82ef260e))
+* checkpointing and interrupt support ([#4](https://github.com/daedalus-ai-dev/ai-sdk/issues/4)) ([94ec763](https://github.com/daedalus-ai-dev/ai-sdk/commit/94ec7630278606adeb9c025b22f5fcd7abe9384f))
+
+
+### Documentation
+
+* add checkpointing API reference ([ae9adbd](https://github.com/daedalus-ai-dev/ai-sdk/commit/ae9adbd6969a02127cade10d5d554c5f1778950c))
+
 ## [0.1.7](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.6...ai-sdk-v0.1.7) (2026-03-20)
 
 
