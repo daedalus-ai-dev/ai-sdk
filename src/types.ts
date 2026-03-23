@@ -156,6 +156,26 @@ export interface AIProvider {
   stream(request: ChatRequest): AsyncGenerator<StreamChunk>;
 }
 
+// ─── Checkpoint ───────────────────────────────────────────────────────────────
+
+/**
+ * Serialisable snapshot of agent execution state.
+ * All fields are plain JSON — safe to store in KV, a database, or pass over HTTP.
+ */
+export interface Checkpoint {
+  /** Full conversation history at the time of the snapshot. */
+  messages: Message[];
+  /** Number of provider calls consumed so far — checked against maxIterations on resume. */
+  iterations: number;
+  /** Accumulated token usage across all iterations. */
+  usage: Usage;
+  /**
+   * Set when the agent was paused by an InterruptError.
+   * Required by `AgentRunner.resume()` to inject the user's answer as a tool result.
+   */
+  pendingToolUseId?: string;
+}
+
 // ─── Agent response ───────────────────────────────────────────────────────────
 
 export interface AgentResponse<T = unknown> {
@@ -163,12 +183,30 @@ export interface AgentResponse<T = unknown> {
   structured: T;
   usage: Usage;
   messages: Message[];
+  /**
+   * Serialisable snapshot of execution state at the end of the run.
+   * Store this and pass it to `AgentRunner.resume()` to continue later.
+   */
+  checkpoint: Checkpoint;
 }
 
 export interface StreamedAgentResponse {
   text: string;
   usage: Usage;
   messages: Message[];
+}
+
+/**
+ * Returned by `AgentRunner.prompt()` when a tool throws an `InterruptError`.
+ * Save `checkpoint` (it is fully JSON-serialisable) and call
+ * `AgentRunner.resume(checkpoint, answer)` when the user replies.
+ */
+export interface InterruptedResponse {
+  interrupted: true;
+  /** The question the agent wants answered before it can continue. */
+  question: string;
+  /** Save this and pass to `AgentRunner.resume(checkpoint, answer)`. */
+  checkpoint: Checkpoint & { pendingToolUseId: string };
 }
 
 // ─── Schema builder ───────────────────────────────────────────────────────────

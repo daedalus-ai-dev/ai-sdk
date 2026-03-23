@@ -3,6 +3,7 @@ import type {
   Message,
   MessageContent,
   AgentResponse,
+  InterruptedResponse,
   StreamedAgentResponse,
   Usage,
   SchemaFn,
@@ -13,6 +14,8 @@ import type { Tool } from './tool.js';
 import { toolToDefinition } from './tool.js';
 import { buildSchema } from './schema.js';
 import type { ContextManager } from './context-manager.js';
+import type { Checkpoint } from './types.js';
+import { InterruptError } from './checkpoint.js';
 
 // ─── Agent interface (for class-based agents) ─────────────────────────────────
 
@@ -85,13 +88,41 @@ class AgentRunner {
   async prompt<T = unknown>(
     input: string,
     history: Message[] = [],
-  ): Promise<AgentResponse<T>> {
-    const provider = this.resolveProvider();
+  ): Promise<AgentResponse<T> | InterruptedResponse> {
     const messages: Message[] = [
       ...history,
       { role: 'user', content: input },
     ];
+    return this.runLoop<T>(messages, 0, { inputTokens: 0, outputTokens: 0 });
+  }
 
+  /**
+   * Resume an interrupted run. Injects the user's answer as the tool result for
+   * the pending `ask_user` call, then continues the agent loop from where it stopped.
+   *
+   * @param checkpoint - The `checkpoint` field from an {@link InterruptedResponse}.
+   * @param answer     - The user's reply to the interrupted question.
+   */
+  async resume<T = unknown>(
+    checkpoint: Checkpoint & { pendingToolUseId: string },
+    answer: string,
+  ): Promise<AgentResponse<T> | InterruptedResponse> {
+    const messages: Message[] = [
+      ...checkpoint.messages,
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', toolUseId: checkpoint.pendingToolUseId, content: answer }],
+      },
+    ];
+    return this.runLoop<T>(messages, checkpoint.iterations, { ...checkpoint.usage });
+  }
+
+  private async runLoop<T>(
+    messages: Message[],
+    startIterations: number,
+    accUsage: Usage,
+  ): Promise<AgentResponse<T> | InterruptedResponse> {
+    const provider = this.resolveProvider();
     const toolDefs = this.tools.map(toolToDefinition);
 
     let responseSchema: JsonSchemaObject | undefined;
@@ -99,8 +130,8 @@ class AgentRunner {
       responseSchema = buildSchema(this.schemaFn);
     }
 
-    const totalUsage: Usage = { inputTokens: 0, outputTokens: 0 };
-    let iterations = 0;
+    const totalUsage: Usage = { ...accUsage };
+    let iterations = startIterations;
 
     while (iterations < this.maxIterations) {
       iterations++;
@@ -126,13 +157,13 @@ class AgentRunner {
       totalUsage.inputTokens += response.usage.inputTokens;
       totalUsage.outputTokens += response.usage.outputTokens;
 
-      // Add assistant message
       messages.push({ role: 'assistant', content: response.content });
 
       if (response.stopReason === 'tool_use') {
-        // Find and execute tool calls
         const toolUses = response.content.filter((c) => c.type === 'tool_use');
         const toolResults: MessageContent[] = [];
+        let interrupted: InterruptError | null = null;
+        let interruptedToolUseId = '';
 
         await Promise.all(
           toolUses.map(async (part) => {
@@ -151,12 +182,13 @@ class AgentRunner {
 
             try {
               const result = await tool.handle(part.input);
-              toolResults.push({
-                type: 'tool_result',
-                toolUseId: part.id,
-                content: result,
-              });
+              toolResults.push({ type: 'tool_result', toolUseId: part.id, content: result });
             } catch (err) {
+              if (err instanceof InterruptError) {
+                interrupted = err;
+                interruptedToolUseId = part.id;
+                return; // skip adding a tool_result — resume() will inject it
+              }
               toolResults.push({
                 type: 'tool_result',
                 toolUseId: part.id,
@@ -166,6 +198,14 @@ class AgentRunner {
             }
           }),
         );
+
+        if (interrupted) {
+          return {
+            interrupted: true,
+            question: (interrupted as InterruptError).question,
+            checkpoint: { messages, iterations, usage: totalUsage, pendingToolUseId: interruptedToolUseId },
+          };
+        }
 
         messages.push({ role: 'user', content: toolResults });
         continue;
@@ -190,6 +230,7 @@ class AgentRunner {
         structured,
         usage: totalUsage,
         messages,
+        checkpoint: { messages, iterations, usage: totalUsage },
       };
     }
 
@@ -331,7 +372,7 @@ export async function runAgent<T = unknown>(
   agentInstance: AgentInterface,
   input: string,
   options?: { provider?: AIProvider; history?: Message[] },
-): Promise<AgentResponse<T>> {
+): Promise<AgentResponse<T> | InterruptedResponse> {
   const runner = new AgentRunner({
     instructions: agentInstance.instructions(),
     tools: agentInstance.tools?.() ?? [],

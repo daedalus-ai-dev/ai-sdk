@@ -2,6 +2,9 @@
 export { agent, runAgent, configure } from './agent.js';
 export type { AgentInterface, AgentConfig } from './agent.js';
 
+// ─── Checkpointing ────────────────────────────────────────────────────────────
+export { InterruptError, isInterrupted, assertComplete } from './checkpoint.js';
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type {
   Role,
@@ -28,6 +31,8 @@ export type {
   StreamChunk,
   AIProvider,
   AgentResponse,
+  InterruptedResponse,
+  Checkpoint,
   StreamedAgentResponse,
   SchemaFn,
   SchemaBuilder,
