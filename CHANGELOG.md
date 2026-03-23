@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.9](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.8...ai-sdk-v0.1.9) (2026-03-23)
+
+
+### Features
+
+* Zod schema support in defineTool() and agent() ([c77a6db](https://github.com/daedalus-ai-dev/ai-sdk/commit/c77a6db4538f94df68eb0f03196767ccc54c7c24))
+* Zod schema support in defineTool() and agent() ([c52463a](https://github.com/daedalus-ai-dev/ai-sdk/commit/c52463a6004f0712a1e2ab576fc683f13697b7a5)), closes [#7](https://github.com/daedalus-ai-dev/ai-sdk/issues/7)
+
 ## [0.1.8](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.7...ai-sdk-v0.1.8) (2026-03-23)
 
 

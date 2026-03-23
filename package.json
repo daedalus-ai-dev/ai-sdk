@@ -1,6 +1,6 @@
 {
   "name": "@daedalus-ai-dev/ai-sdk",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "A TypeScript AI SDK for building agents, tools, and multi-agent workflows",
   "license": "MIT",
   "type": "module",
@@ -52,8 +52,12 @@
     "zod-to-json-schema": ">=3.0.0"
   },
   "peerDependenciesMeta": {
-    "zod": { "optional": true },
-    "zod-to-json-schema": { "optional": true }
+    "zod": {
+      "optional": true
+    },
+    "zod-to-json-schema": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
