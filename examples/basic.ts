@@ -7,11 +7,13 @@
 
 import {
   agent,
+  runAgent,
   configure,
   openrouter,
   Pipeline,
   WebFetch,
   defineTool,
+  assertComplete,
 } from '../src/index.js';
 
 // ─── 1. Configure a global provider ──────────────────────────────────────────
@@ -27,9 +29,9 @@ configure({
 // ─── 2. Simple prompt ─────────────────────────────────────────────────────────
 
 async function simplePrompt() {
-  const response = await agent({
+  const response = assertComplete(await agent({
     instructions: 'You are a concise assistant.',
-  }).prompt('What is the capital of France?');
+  }).prompt('What is the capital of France?'));
 
   console.log('Simple:', response.text);
 }
@@ -37,7 +39,7 @@ async function simplePrompt() {
 // ─── 3. Structured output ─────────────────────────────────────────────────────
 
 async function structuredOutput() {
-  const response = await agent({
+  const response = assertComplete(await agent({
     instructions: 'You are a content quality evaluator.',
     schema: (s) => ({
       score: s.integer().min(1).max(10).description('Quality score').required(),
@@ -46,7 +48,7 @@ async function structuredOutput() {
     }),
   }).prompt<{ score: number; approved: boolean; issues: string[] }>(
     'Evaluate: "The quick brown fox jumps over the lazy dog."',
-  );
+  ));
 
   console.log('Structured:', response.structured);
 }
@@ -72,10 +74,10 @@ async function toolUse() {
     },
   });
 
-  const response = await agent({
+  const response = assertComplete(await agent({
     instructions: 'You are a helpful math assistant. Use the calculator tool for computations.',
     tools: [calculator],
-  }).prompt('What is 1337 * 42?');
+  }).prompt('What is 1337 * 42?'));
 
   console.log('Tool use:', response.text);
 }
@@ -83,10 +85,10 @@ async function toolUse() {
 // ─── 5. WebFetch tool ─────────────────────────────────────────────────────────
 
 async function webFetchTool() {
-  const response = await agent({
+  const response = assertComplete(await agent({
     instructions: 'You summarize web pages concisely.',
     tools: [new WebFetch()],
-  }).prompt('Fetch https://example.com and tell me what it is about.');
+  }).prompt('Fetch https://example.com and tell me what it is about.'));
 
   console.log('WebFetch:', response.text);
 }
@@ -99,13 +101,13 @@ async function promptChaining() {
   const result = await Pipeline.send<Payload>({ topic: 'TypeScript generics', draft: '', final: '' })
     .through([
       async (p, next) => {
-        const r = await agent({ instructions: 'You are a technical writer.' })
-          .prompt(`Write a one-paragraph explanation of: ${p.topic}`);
+        const r = assertComplete(await agent({ instructions: 'You are a technical writer.' })
+          .prompt(`Write a one-paragraph explanation of: ${p.topic}`));
         return next({ ...p, draft: r.text });
       },
       async (p, next) => {
-        const r = await agent({ instructions: 'You improve technical writing for clarity.' })
-          .prompt(`Improve this paragraph:\n\n${p.draft}`);
+        const r = assertComplete(await agent({ instructions: 'You improve technical writing for clarity.' })
+          .prompt(`Improve this paragraph:\n\n${p.draft}`));
         return next({ ...p, final: r.text });
       },
     ])
@@ -120,15 +122,15 @@ async function parallelization() {
   const code = `function add(a, b) { return a + b; }`;
 
   const [security, performance] = await Promise.all([
-    agent({ instructions: 'You are a security code reviewer.' }).prompt(`Review: ${code}`),
-    agent({ instructions: 'You are a performance optimization expert.' }).prompt(`Review: ${code}`),
+    agent({ instructions: 'You are a security code reviewer.' }).prompt(`Review: ${code}`).then(assertComplete),
+    agent({ instructions: 'You are a performance optimization expert.' }).prompt(`Review: ${code}`).then(assertComplete),
   ]);
 
-  const summary = await agent({
+  const summary = assertComplete(await agent({
     instructions: 'You are a tech lead synthesizing code reviews.',
   }).prompt(
     `Summarize these reviews:\nSecurity: ${security.text}\nPerformance: ${performance.text}`,
-  );
+  ));
 
   console.log('Parallel summary:', summary.text);
 }
@@ -137,11 +139,11 @@ async function parallelization() {
 
 async function evaluatorOptimizer() {
   const topic = 'the importance of TypeScript';
-  let content = (await agent({ instructions: 'You are a clear and concise writer.' })
+  let content = assertComplete(await agent({ instructions: 'You are a clear and concise writer.' })
     .prompt(`Write a short paragraph about: ${topic}`)).text;
 
   for (let i = 0; i < 3; i++) {
-    const evaluation = await agent({
+    const evaluation = assertComplete(await agent({
       instructions: 'You evaluate writing quality.',
       schema: (s) => ({
         score: s.integer().min(1).max(10).required(),
@@ -150,12 +152,12 @@ async function evaluatorOptimizer() {
       }),
     }).prompt<{ score: number; approved: boolean; issues: string[] }>(
       `Rate this (approved if score >= 8):\n${content}`,
-    );
+    ));
 
     if (evaluation.structured.approved) break;
 
     const issues = evaluation.structured.issues.join(', ');
-    content = (await agent({ instructions: 'You are a clear and concise writer.' })
+    content = assertComplete(await agent({ instructions: 'You are a clear and concise writer.' })
       .prompt(`Rewrite fixing these issues: ${issues}\n\n${content}`)).text;
   }
 
@@ -164,7 +166,6 @@ async function evaluatorOptimizer() {
 
 // ─── 9. Class-based agent ─────────────────────────────────────────────────────
 
-import { runAgent } from '../src/index.js';
 import type { AgentInterface } from '../src/index.js';
 
 class SalesCoach implements AgentInterface {
@@ -174,7 +175,7 @@ class SalesCoach implements AgentInterface {
 }
 
 async function classBasedAgent() {
-  const response = await runAgent(new SalesCoach(), 'How do I handle price objections?');
+  const response = assertComplete(await runAgent(new SalesCoach(), 'How do I handle price objections?'));
   console.log('SalesCoach:', response.text);
 }
 

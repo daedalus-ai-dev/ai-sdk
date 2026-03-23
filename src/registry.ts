@@ -1,6 +1,7 @@
 import { agent } from './agent.js';
 import { defineTool } from './tool.js';
 import type { AgentConfig } from './agent.js';
+import { InterruptError, isInterrupted } from './checkpoint.js';
 
 // ─── Internal store ───────────────────────────────────────────────────────────
 
@@ -99,6 +100,10 @@ export function agentTool(name: string, options?: AgentToolOptions) {
       console.log(`\n[agent:${name}] starting`);
       const runner = getAgent(name);
       const response = await runner.prompt(task as string);
+      if (isInterrupted(response)) {
+        // Propagate the interrupt upward so the outer orchestrator also pauses.
+        throw new InterruptError(response.question);
+      }
       console.log(`[agent:${name}] done`);
       return response.text;
     },
