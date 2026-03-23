@@ -213,6 +213,19 @@ export interface InterruptedResponse {
 
 export type SchemaFn = (schema: SchemaBuilder) => Record<string, PropertyBuilder>;
 
+/**
+ * Duck-typed interface matching any Zod schema object.
+ * Avoids a hard dependency on the `zod` package.
+ */
+export interface ZodLike {
+  _def: unknown;
+  parse(data: unknown): unknown;
+  safeParse(data: unknown): { success: boolean; data?: unknown; error?: unknown };
+}
+
+/** Accepted wherever a schema can be provided — fluent builder or a Zod schema. */
+export type SchemaInput = SchemaFn | ZodLike;
+
 // Property builder — fluent API that emits a JsonSchemaProperty
 export abstract class PropertyBuilder {
   _required = false;

@@ -8,7 +8,7 @@ Creates a `Tool` from a plain options object. Use this for inline or one-off too
 function defineTool(options: {
   name: string;
   description: string;
-  schema: SchemaFn;
+  schema: SchemaFn | ZodType;   // fluent builder or a Zod schema
   handle: (input: Record<string, unknown>) => Promise<string> | string;
 }): Tool
 ```
@@ -19,10 +19,10 @@ function defineTool(options: {
 |-----------|------|-------------|
 | `name` | `string` | Unique identifier for the tool (snake_case recommended) |
 | `description` | `string` | Tells the model when and how to use this tool |
-| `schema` | `SchemaFn` | Defines the tool's input parameters |
+| `schema` | `SchemaFn \| ZodType` | Defines the tool's input parameters |
 | `handle` | `function` | Executes the tool and returns a string result |
 
-## Example
+## Example — fluent builder
 
 ```ts
 import { defineTool } from '@daedalus-ai-dev/ai-sdk';
@@ -40,6 +40,41 @@ const getExchangeRate = defineTool({
   },
 });
 ```
+
+## Example — Zod schema
+
+Pass a Zod object schema directly. Fields are automatically required unless marked `.optional()`.
+
+```ts
+import { defineTool } from '@daedalus-ai-dev/ai-sdk';
+import { z } from 'zod';
+
+const InputSchema = z.object({
+  from: z.string().describe('Source currency code, e.g. USD'),
+  to:   z.string().describe('Target currency code, e.g. EUR'),
+});
+
+const getExchangeRate = defineTool({
+  name: 'get_exchange_rate',
+  description: 'Get the current exchange rate between two currencies.',
+  schema: InputSchema,
+  handle: async (input) => {
+    const rate = await fetchExchangeRate(String(input.from), String(input.to));
+    return `1 ${input.from} = ${rate} ${input.to}`;
+  },
+});
+```
+
+::: tip Zod setup
+Zod support requires two peer dependencies:
+```sh
+npm install zod zod-to-json-schema
+```
+:::
+
+::: tip Reuse existing types
+When you already have a Zod schema for validation elsewhere, pass it directly to `defineTool` — no need to duplicate the schema in the fluent builder.
+:::
 
 ## The `Tool` interface
 

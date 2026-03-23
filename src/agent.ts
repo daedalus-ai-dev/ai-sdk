@@ -6,13 +6,14 @@ import type {
   InterruptedResponse,
   StreamedAgentResponse,
   Usage,
-  SchemaFn,
+  SchemaInput,
   JsonSchemaObject,
   ChatRequest,
 } from './types.js';
 import type { Tool } from './tool.js';
 import { toolToDefinition } from './tool.js';
 import { buildSchema } from './schema.js';
+import { isZodSchema, zodToJsonSchema } from './zod.js';
 import type { ContextManager } from './context-manager.js';
 import type { Checkpoint } from './types.js';
 import { InterruptError } from './checkpoint.js';
@@ -22,7 +23,7 @@ import { InterruptError } from './checkpoint.js';
 export interface AgentInterface {
   instructions(): string;
   tools?(): Tool[];
-  schema?: SchemaFn;
+  schema?: SchemaInput;
   model?(): string;
 }
 
@@ -31,7 +32,7 @@ export interface AgentInterface {
 export interface AgentConfig {
   instructions: string;
   tools?: Tool[];
-  schema?: SchemaFn;
+  schema?: SchemaInput;
   model?: string;
   provider?: AIProvider;
   maxIterations?: number;
@@ -58,7 +59,7 @@ class AgentRunner {
   private readonly model: string;
   private readonly instructions: string;
   private readonly tools: Tool[];
-  private readonly schemaFn?: SchemaFn;
+  private readonly schema?: SchemaInput;
   private readonly maxIterations: number;
   private readonly temperature?: number;
   private readonly maxTokens?: number;
@@ -69,7 +70,7 @@ class AgentRunner {
     this.model = config.model ?? defaultModel;
     this.instructions = config.instructions;
     this.tools = config.tools ?? [];
-    this.schemaFn = config.schema;
+    this.schema = config.schema;
     this.maxIterations = config.maxIterations ?? 10;
     this.temperature = config.temperature;
     this.maxTokens = config.maxTokens;
@@ -126,8 +127,10 @@ class AgentRunner {
     const toolDefs = this.tools.map(toolToDefinition);
 
     let responseSchema: JsonSchemaObject | undefined;
-    if (this.schemaFn) {
-      responseSchema = buildSchema(this.schemaFn);
+    if (this.schema) {
+      responseSchema = isZodSchema(this.schema)
+        ? zodToJsonSchema(this.schema)
+        : buildSchema(this.schema);
     }
 
     const totalUsage: Usage = { ...accUsage };
@@ -215,9 +218,15 @@ class AgentRunner {
       const text = extractText(response.content);
       let structured: T;
 
-      if (this.schemaFn) {
+      if (this.schema) {
         try {
-          structured = JSON.parse(text) as T;
+          const raw = JSON.parse(text) as unknown;
+          if (isZodSchema(this.schema)) {
+            const result = this.schema.safeParse(raw);
+            structured = (result.success ? result.data : raw) as T;
+          } else {
+            structured = raw as T;
+          }
         } catch {
           structured = {} as T;
         }

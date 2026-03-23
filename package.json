@@ -47,11 +47,21 @@
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"
   },
+  "peerDependencies": {
+    "zod": ">=3.0.0",
+    "zod-to-json-schema": ">=3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "zod": { "optional": true },
+    "zod-to-json-schema": { "optional": true }
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "typescript": "^5.6.0",
     "vitepress": "^1.6.4",
-    "vitest": "^2.0.0"
+    "vitest": "^2.0.0",
+    "zod": "^3.24.0",
+    "zod-to-json-schema": "^3.24.0"
   },
   "engines": {
     "node": ">=20"
