@@ -36,6 +36,8 @@ export type {
   StreamedAgentResponse,
   SchemaFn,
   SchemaBuilder,
+  ZodLike,
+  SchemaInput,
 } from './types.js';
 
 export {
@@ -50,6 +52,7 @@ export {
 
 // ─── Schema builder ───────────────────────────────────────────────────────────
 export { schema, buildSchema } from './schema.js';
+export { isZodSchema } from './zod.js';
 
 // ─── Context Window Management ────────────────────────────────────────────────
 export type { ContextManager } from './context-manager.js';

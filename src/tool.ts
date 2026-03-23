@@ -1,5 +1,6 @@
-import type { ToolDefinition, JsonSchemaObject, SchemaFn } from './types.js';
+import type { ToolDefinition, JsonSchemaObject, SchemaFn, SchemaInput } from './types.js';
 import { buildSchema } from './schema.js';
+import { isZodSchema, zodToJsonSchema } from './zod.js';
 
 // ─── Tool interface ───────────────────────────────────────────────────────────
 
@@ -38,15 +39,28 @@ export function toolToDefinition(tool: Tool): ToolDefinition {
 interface FunctionalToolOptions {
   name: string;
   description: string;
-  schema: SchemaFn;
+  /** Accepts either the fluent schema builder function or a Zod schema object. */
+  schema: SchemaInput;
   handle: (input: Record<string, unknown>) => Promise<string> | string;
 }
 
 export function defineTool(options: FunctionalToolOptions): Tool {
+  if (isZodSchema(options.schema)) {
+    const inputSchema = zodToJsonSchema(options.schema);
+    const tool: Tool & Record<symbol, unknown> = {
+      name: () => options.name,
+      description: () => options.description,
+      schema: (_: import('./types.js').SchemaBuilder) => ({} as Record<string, import('./types.js').PropertyBuilder>),
+      handle: options.handle,
+    };
+    tool[RAW_INPUT_SCHEMA] = inputSchema;
+    return tool;
+  }
+
   return {
     name: () => options.name,
     description: () => options.description,
-    schema: options.schema,
+    schema: options.schema as SchemaFn,
     handle: options.handle,
   };
 }

@@ -18,8 +18,8 @@ interface AgentConfig {
   /** Tools the agent can call. Triggers the agentic loop when present. */
   tools?: Tool[];
 
-  /** Schema function for structured output. */
-  schema?: SchemaFn;
+  /** Schema for structured output — fluent builder function or a Zod schema. */
+  schema?: SchemaFn | ZodType;
 
   /** Model identifier (e.g. 'openai/gpt-4o-mini'). Overrides global default. */
   model?: string;
@@ -133,6 +133,35 @@ const response = await agent({
 console.log(response.structured.answer);     // 299792
 console.log(response.structured.confidence); // 0.99
 ```
+
+### With structured output (Zod)
+
+Pass a Zod schema to get automatic JSON schema generation and `safeParse` validation on the response. Fields are required unless marked `.optional()`.
+
+```ts
+import { z } from 'zod';
+
+const Review = z.object({
+  score:    z.number().int().min(1).max(10),
+  approved: z.boolean(),
+  issues:   z.array(z.string()),
+});
+
+const response = await agent({
+  instructions: 'Evaluate the content.',
+  schema: Review,
+}).prompt<z.infer<typeof Review>>('Rate: "The quick brown fox."');
+
+console.log(response.structured.score);    // 7
+console.log(response.structured.approved); // false
+console.log(response.structured.issues);   // ["Too short", ...]
+```
+
+::: tip Zod setup
+```sh
+npm install zod zod-to-json-schema
+```
+:::
 
 ### With tools
 

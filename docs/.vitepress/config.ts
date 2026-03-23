@@ -42,6 +42,7 @@ export default defineConfig({
             { text: 'Providers', link: '/guide/providers' },
             { text: 'Streaming', link: '/guide/streaming' },
             { text: 'MCP Tools', link: '/guide/mcp' },
+            { text: 'Zod Schemas', link: '/guide/zod' },
           ],
         },
       ],
