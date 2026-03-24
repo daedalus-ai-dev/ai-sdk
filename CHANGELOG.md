@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.12](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.11...ai-sdk-v0.1.12) (2026-03-24)
+
+
+### Features
+
+* debug mode with colorized output and session token tracking ([7b4d57f](https://github.com/daedalus-ai-dev/ai-sdk/commit/7b4d57f11deb99cd1fc1c465f70a218699f60f7d))
+
 ## [0.1.11](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.10...ai-sdk-v0.1.11) (2026-03-24)
 
 
