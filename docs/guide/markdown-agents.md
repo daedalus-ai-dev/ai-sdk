@@ -1,13 +1,13 @@
-# Markdown Agents & Skills
+# Markdown Agents & Partials
 
 Instead of defining agents in TypeScript, you can write them as markdown files with YAML frontmatter. This keeps system prompts readable, makes agents easy to edit without touching code, and lets non-engineers contribute prompt changes through normal file edits.
 
-## Skills
+## Partials
 
-A **skill** is a reusable instruction fragment that can be embedded inside any agent's instructions. Think of it as a shared paragraph you don't want to copy-paste.
+A **partial** is a reusable instruction fragment that can be embedded inside any agent's instructions. Think of it as a shared paragraph you don't want to copy-paste.
 
 ```
-skills/
+partials/
   tone.md
   citation-style.md
 agents/
@@ -15,7 +15,7 @@ agents/
   writer.md
 ```
 
-**`skills/tone.md`**
+**`partials/tone.md`**
 
 ```markdown
 ---
@@ -25,7 +25,7 @@ description: Sets the response tone
 Always respond in a clear, professional tone. Avoid jargon unless the user is clearly technical.
 ```
 
-**`skills/citation-style.md`**
+**`partials/citation-style.md`**
 
 ```markdown
 ---
@@ -50,9 +50,9 @@ maxIterations: 8
 ---
 You are a research specialist. Find accurate, up-to-date information on the topic provided.
 
-{{skill:tone}}
+{{partial:tone}}
 
-{{skill:citation-style}}
+{{partial:citation-style}}
 ```
 
 **`agents/writer.md`**
@@ -64,10 +64,10 @@ model: anthropic/claude-3-5-sonnet
 ---
 You are a professional writer. Turn research notes into polished prose.
 
-{{skill:tone}}
+{{partial:tone}}
 ```
 
-The <code v-pre>{{skill:name}}</code> placeholder is replaced with the skill's instruction text at load time.
+The <code v-pre>{{partial:name}}</code> placeholder is replaced with the partial's instruction text at load time.
 
 ## Loading in code
 
@@ -75,7 +75,7 @@ The <code v-pre>{{skill:name}}</code> placeholder is replaced with the skill's i
 import {
   configure,
   anthropic,
-  loadSkillsFrom,
+  loadPartialsFrom,
   loadAgentsFrom,
   getAgent,
   WebFetch,
@@ -83,8 +83,8 @@ import {
 
 configure({ provider: anthropic('claude-3-5-sonnet-20241022') });
 
-// 1. Load skills first — agents reference them
-await loadSkillsFrom('./skills');
+// 1. Load partials first — agents reference them
+await loadPartialsFrom('./partials');
 
 // 2. Load agents — tools are resolved by name
 await loadAgentsFrom('./agents', {
@@ -98,7 +98,7 @@ const response = await getAgent('researcher').prompt(
 console.log(response.text);
 ```
 
-Skills must be loaded before agents that reference them.
+Partials must be loaded before agents that reference them.
 
 ## Frontmatter reference
 
@@ -176,9 +176,9 @@ const response = await runner.prompt('Summarise the latest AI news.');
 Useful in tests or when fetching definitions from a database or CMS:
 
 ```ts
-import { parseAgent, parseSkill, registerSkill } from '@daedalus-ai-dev/ai-sdk';
+import { parseAgent, parsePartial, registerPartial } from '@daedalus-ai-dev/ai-sdk';
 
-registerSkill('tone', parseSkill(`
+registerPartial('tone', parsePartial(`
 ---
 name: tone
 ---
@@ -190,7 +190,7 @@ const runner = parseAgent(`
 name: assistant
 model: openai/gpt-4o-mini
 ---
-You are a helpful assistant. {{skill:tone}}
+You are a helpful assistant. {{partial:tone}}
 `);
 ```
 

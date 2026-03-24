@@ -13,10 +13,10 @@ async function loadAgentsFrom(
 ): Promise<void>
 ```
 
-Read every `.md` file in `dir`, parse each one as an agent, and register it by its `name` frontmatter field. If agents reference <code v-pre>{{skill:name}}</code> placeholders, call `loadSkillsFrom()` first.
+Read every `.md` file in `dir`, parse each one as an agent, and register it by its `name` frontmatter field. If agents reference <code v-pre>{{partial:name}}</code> placeholders, call `loadPartialsFrom()` first.
 
 ```ts
-await loadSkillsFrom('./skills');
+await loadPartialsFrom('./partials');
 await loadAgentsFrom('./agents', {
   tools: { 'web-fetch': new WebFetch() },
 });
@@ -130,4 +130,4 @@ interface LoadAgentOptions {
 |---------|-------|
 | `Agent markdown must have a "name" field in frontmatter.` | Frontmatter is missing `name`. |
 | `Tool "<name>" listed in agent "<agent>" frontmatter but not provided in options.tools.` | A tool name in `tools:` has no matching entry in `options.tools`. |
-| `Skill "<name>" referenced in agent instructions but not registered.` | <code v-pre>{{skill:name}}</code> used before the skill was registered. |
+| `Partial "<name>" referenced in agent instructions but not registered.` | <code v-pre>{{partial:name}}</code> used before the partial was registered. |

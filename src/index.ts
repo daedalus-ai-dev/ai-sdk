@@ -111,18 +111,37 @@ export type { AgentToolOptions } from './registry.js';
 export { connectMcp, McpConnection } from './mcp/index.js';
 export type { McpServerConfig, McpStdioConfig, McpHttpConfig } from './mcp/index.js';
 
+// ─── Refine ───────────────────────────────────────────────────────────────────
+export { refine, RefineLimitError } from './refine.js';
+export type { RefineConfig, RefineResult } from './refine.js';
+
+// ─── Workflow ─────────────────────────────────────────────────────────────────
+export { workflow, fromSkill, parseWorkflow, loadWorkflow, WorkflowBuilder } from './workflow.js';
+export type {
+  WorkflowStep,
+  WorkflowResult,
+  WorkflowRunner,
+  WorkflowRegistry,
+  StageResult,
+} from './workflow.js';
+
+// ─── Skills ───────────────────────────────────────────────────────────────────
+export { skill, registerSkill, getSkill, hasSkill, listSkills, clearSkills } from './skill.js';
+export { parseSkill, loadSkill, loadSkillsFrom } from './skill.js';
+export type { SkillConfig, SkillRunner, SkillResult } from './skill.js';
+
 // ─── Markdown loaders ─────────────────────────────────────────────────────────
 export { parseAgent, loadAgent, loadAgentsFrom, yamlSchemaToJsonSchema } from './loader.js';
 export type { LoadAgentOptions } from './loader.js';
 
 export {
-  parseSkill,
-  loadSkill,
-  loadSkillsFrom,
-  registerSkill,
-  getSkill,
-  hasSkill,
-  listSkills,
-  clearSkills,
-} from './skill.js';
-export type { Skill } from './skill.js';
+  parsePartial,
+  loadPartial,
+  loadPartialsFrom,
+  registerPartial,
+  getPartial,
+  hasPartial,
+  listPartials,
+  clearPartials,
+} from './partial.js';
+export type { PromptPartial } from './partial.js';
