@@ -89,6 +89,7 @@ export default defineConfig({
             { text: 'buildSchema()', link: '/api/build-schema' },
             { text: 'Prompt Templates', link: '/api/prompt-templates' },
             { text: 'Context Window', link: '/api/context-manager' },
+            { text: 'Workflow', link: '/api/workflow' },
             { text: 'Checkpointing', link: '/api/checkpoint' },
             { text: 'Markdown Loader', link: '/api/loader' },
             { text: 'Partials', link: '/api/partial' },

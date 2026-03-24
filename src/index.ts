@@ -111,6 +111,16 @@ export type { AgentToolOptions } from './registry.js';
 export { connectMcp, McpConnection } from './mcp/index.js';
 export type { McpServerConfig, McpStdioConfig, McpHttpConfig } from './mcp/index.js';
 
+// ─── Workflow ─────────────────────────────────────────────────────────────────
+export { workflow, fromSkill, parseWorkflow, loadWorkflow, WorkflowBuilder } from './workflow.js';
+export type {
+  WorkflowStep,
+  WorkflowResult,
+  WorkflowRunner,
+  WorkflowRegistry,
+  StageResult,
+} from './workflow.js';
+
 // ─── Skills ───────────────────────────────────────────────────────────────────
 export { skill, registerSkill, getSkill, hasSkill, listSkills, clearSkills } from './skill.js';
 export { parseSkill, loadSkill, loadSkillsFrom } from './skill.js';
