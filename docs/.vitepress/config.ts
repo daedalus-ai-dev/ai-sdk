@@ -73,6 +73,8 @@ export default defineConfig({
             { text: 'Cover Letter Generator', link: '/examples/cover-letter-generator' },
             { text: 'AI Development Workflow', link: '/examples/ai-development-workflow' },
             { text: 'Markdown Research Pipeline', link: '/examples/markdown-research-pipeline' },
+            { text: 'TDD Code Generator', link: '/examples/tdd-code-generator' },
+            { text: 'BDD Three Amigos', link: '/examples/bdd-three-amigos' },
           ],
         },
       ],
