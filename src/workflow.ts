@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import matter from 'gray-matter';
 import type { SkillRunner } from './skill.js';
+import * as log from './logger.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -100,14 +101,21 @@ export class WorkflowBuilder<TInitial, TCurrent> {
           const start = Date.now();
 
           if (stage.kind === 'parallel') {
+            const stepNames = stage.steps.map((s: WorkflowStep<unknown, unknown>) => s.name);
+            log.workflowStageStart('parallel', stepNames);
             const results = await Promise.all(
               stage.steps.map((s: WorkflowStep<unknown, unknown>) => s.run(current)),
             );
             current = await stage.accumulate(results);
-            stageResults.push({ type: 'parallel', durationMs: Date.now() - start });
+            const elapsed = Date.now() - start;
+            stageResults.push({ type: 'parallel', durationMs: elapsed });
+            log.workflowStageDone(elapsed);
           } else {
+            log.workflowStageStart('serial', [stage.step.name]);
             current = await stage.step.run(current);
-            stageResults.push({ type: 'serial', name: stage.step.name, durationMs: Date.now() - start });
+            const elapsed = Date.now() - start;
+            stageResults.push({ type: 'serial', name: stage.step.name, durationMs: elapsed });
+            log.workflowStageDone(elapsed);
           }
         }
 

@@ -5,6 +5,8 @@ import { agent } from './agent.js';
 import { isZodSchema } from './zod.js';
 import { yamlSchemaToJsonSchema } from './loader.js';
 import type { SchemaInput } from './types.js';
+import * as log from './logger.js';
+import { enterSkillContext, exitSkillContext } from './logger.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,6 +78,9 @@ export function skill<TInput = unknown, TOutput = unknown>(
           ? input
           : JSON.stringify(input, null, 2);
 
+      log.skillStart(config.instructions);
+      log.skillPrompt(userPrompt);
+
       // Single-shot call — no tools, one iteration
       const runner = agent({
         instructions: config.instructions,
@@ -86,13 +91,20 @@ export function skill<TInput = unknown, TOutput = unknown>(
         maxIterations: 1,
       });
 
-      const result = await runner.prompt<TOutput>(userPrompt);
+      enterSkillContext();
+      let result;
+      try {
+        result = await runner.prompt<TOutput>(userPrompt);
+      } finally {
+        exitSkillContext();
+      }
 
       // Skills are single-shot and have no tools, so interrupted responses cannot occur.
       if ('interrupted' in result) {
         throw new Error('Skill received an unexpected interrupted response.');
       }
 
+      log.skillDone(result.structured, result.usage);
       return {
         text: result.text,
         structured: result.structured,

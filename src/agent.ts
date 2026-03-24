@@ -18,6 +18,7 @@ import { isZodSchema, zodToJsonSchema, isRawJsonSchema } from './zod.js';
 import type { ContextManager } from './context-manager.js';
 import type { Checkpoint } from './types.js';
 import { InterruptError } from './checkpoint.js';
+import * as log from './logger.js';
 
 // ─── Agent interface (for class-based agents) ─────────────────────────────────
 
@@ -48,9 +49,10 @@ export interface AgentConfig {
 let defaultProvider: AIProvider | null = null;
 let defaultModel: string = 'openai/gpt-4o-mini';
 
-export function configure(options: { provider?: AIProvider; model?: string }): void {
+export function configure(options: { provider?: AIProvider; model?: string; debug?: boolean }): void {
   if (options.provider) defaultProvider = options.provider;
   if (options.model) defaultModel = options.model;
+  if (options.debug !== undefined) log.setDebug(options.debug);
 }
 
 // ─── AgentRunner ──────────────────────────────────────────────────────────────
@@ -91,6 +93,7 @@ class AgentRunner {
     input: string,
     history: Message[] = [],
   ): Promise<AgentResponse<T> | InterruptedResponse> {
+    log.agentPrompt(input);
     const messages: Message[] = [
       ...history,
       { role: 'user', content: input },
@@ -143,6 +146,7 @@ class AgentRunner {
 
     while (iterations < this.maxIterations) {
       iterations++;
+      log.agentIteration(this.model, iterations, this.maxIterations);
 
       const contextMessages = this.contextManager
         ? await this.contextManager.manage(messages)
@@ -160,10 +164,15 @@ class AgentRunner {
         maxTokens: this.maxTokens,
       };
 
+      const callStart = Date.now();
       const response = await provider.chat(request);
+      const callElapsed = Date.now() - callStart;
 
       totalUsage.inputTokens += response.usage.inputTokens;
       totalUsage.outputTokens += response.usage.outputTokens;
+
+      const responseText = extractText(response.content);
+      log.agentResponse(response.stopReason, responseText, callElapsed, response.usage);
 
       messages.push({ role: 'assistant', content: response.content });
 
@@ -179,17 +188,17 @@ class AgentRunner {
 
             const tool = this.tools.find((t) => t.name() === part.name);
             if (!tool) {
-              toolResults.push({
-                type: 'tool_result',
-                toolUseId: part.id,
-                content: `Tool "${part.name}" not found.`,
-                isError: true,
-              });
+              const errMsg = `Tool "${part.name}" not found.`;
+              log.agentToolCall(part.name, part.input);
+              log.agentToolResult(errMsg, true);
+              toolResults.push({ type: 'tool_result', toolUseId: part.id, content: errMsg, isError: true });
               return;
             }
 
+            log.agentToolCall(part.name, part.input);
             try {
               const result = await tool.handle(part.input);
+              log.agentToolResult(result, false);
               toolResults.push({ type: 'tool_result', toolUseId: part.id, content: result });
             } catch (err) {
               if (err instanceof InterruptError) {
@@ -197,12 +206,9 @@ class AgentRunner {
                 interruptedToolUseId = part.id;
                 return; // skip adding a tool_result — resume() will inject it
               }
-              toolResults.push({
-                type: 'tool_result',
-                toolUseId: part.id,
-                content: `Tool error: ${err instanceof Error ? err.message : String(err)}`,
-                isError: true,
-              });
+              const errMsg = `Tool error: ${err instanceof Error ? err.message : String(err)}`;
+              log.agentToolResult(errMsg, true);
+              toolResults.push({ type: 'tool_result', toolUseId: part.id, content: errMsg, isError: true });
             }
           }),
         );
@@ -220,7 +226,7 @@ class AgentRunner {
       }
 
       // End turn — extract text and optionally parse structured output
-      const text = extractText(response.content);
+      const text = responseText;
       let structured: T;
 
       if (this.schema) {
@@ -239,6 +245,7 @@ class AgentRunner {
         structured = undefined as unknown as T;
       }
 
+      log.agentDone(totalUsage);
       return {
         text,
         structured,

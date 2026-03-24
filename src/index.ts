@@ -111,6 +111,9 @@ export type { AgentToolOptions } from './registry.js';
 export { connectMcp, McpConnection } from './mcp/index.js';
 export type { McpServerConfig, McpStdioConfig, McpHttpConfig } from './mcp/index.js';
 
+// ─── Debug / Token tracking ───────────────────────────────────────────────────
+export { getTokenUsage, resetTokenUsage } from './logger.js';
+
 // ─── Refine ───────────────────────────────────────────────────────────────────
 export { refine, RefineLimitError } from './refine.js';
 export type { RefineConfig, RefineResult } from './refine.js';
