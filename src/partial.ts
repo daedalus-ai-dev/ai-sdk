@@ -4,7 +4,7 @@ import matter from 'gray-matter';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface Skill {
+export interface PromptPartial {
   name: string;
   description?: string;
   instructions: string;
@@ -12,41 +12,41 @@ export interface Skill {
 
 // ─── Registry ─────────────────────────────────────────────────────────────────
 
-const store = new Map<string, Skill>();
+const store = new Map<string, PromptPartial>();
 
-export function registerSkill(name: string, skill: Skill): void {
-  store.set(name, skill);
+export function registerPartial(name: string, partial: PromptPartial): void {
+  store.set(name, partial);
 }
 
-export function getSkill(name: string): Skill {
-  const skill = store.get(name);
-  if (!skill) {
+export function getPartial(name: string): PromptPartial {
+  const partial = store.get(name);
+  if (!partial) {
     throw new Error(
-      `Skill "${name}" not registered. Call registerSkill("${name}", skill) first.`,
+      `Partial "${name}" not registered. Call registerPartial("${name}", partial) first.`,
     );
   }
-  return skill;
+  return partial;
 }
 
-export function hasSkill(name: string): boolean {
+export function hasPartial(name: string): boolean {
   return store.has(name);
 }
 
-export function listSkills(): string[] {
+export function listPartials(): string[] {
   return [...store.keys()];
 }
 
-export function clearSkills(): void {
+export function clearPartials(): void {
   store.clear();
 }
 
 // ─── Parsing ──────────────────────────────────────────────────────────────────
 
 /**
- * Parse a skill from markdown string content.
+ * Parse a partial from markdown string content.
  *
  * @example
- * const skill = parseSkill(`
+ * const partial = parsePartial(`
  * ---
  * name: summarizer
  * description: Condenses long content into bullet points
@@ -54,11 +54,11 @@ export function clearSkills(): void {
  * Summarize the following content concisely using bullet points.
  * `);
  */
-export function parseSkill(content: string): Skill {
+export function parsePartial(content: string): PromptPartial {
   const { data, content: body } = matter(content);
 
   const name = data['name'] as string | undefined;
-  if (!name) throw new Error('Skill markdown must have a "name" field in frontmatter.');
+  if (!name) throw new Error('Partial markdown must have a "name" field in frontmatter.');
 
   return {
     name,
@@ -68,26 +68,26 @@ export function parseSkill(content: string): Skill {
 }
 
 /**
- * Load a skill from a markdown file.
+ * Load a partial from a markdown file.
  */
-export async function loadSkill(filePath: string): Promise<Skill> {
+export async function loadPartial(filePath: string): Promise<PromptPartial> {
   const content = await readFile(filePath, 'utf-8');
-  return parseSkill(content);
+  return parsePartial(content);
 }
 
 /**
- * Load all `.md` files in a directory as skills and register them.
+ * Load all `.md` files in a directory as partials and register them.
  */
-export async function loadSkillsFrom(dir: string): Promise<Skill[]> {
+export async function loadPartialsFrom(dir: string): Promise<PromptPartial[]> {
   const entries = await readdir(dir);
-  const skills: Skill[] = [];
+  const partials: PromptPartial[] = [];
 
   for (const entry of entries) {
     if (extname(entry) !== '.md') continue;
-    const skill = await loadSkill(join(dir, entry));
-    registerSkill(skill.name, skill);
-    skills.push(skill);
+    const partial = await loadPartial(join(dir, entry));
+    registerPartial(partial.name, partial);
+    partials.push(partial);
   }
 
-  return skills;
+  return partials;
 }

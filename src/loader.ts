@@ -4,7 +4,7 @@ import matter from 'gray-matter';
 import { agent } from './agent.js';
 import type { AgentConfig } from './agent.js';
 import { registerAgent } from './registry.js';
-import { getSkill, hasSkill } from './skill.js';
+import { getPartial, hasPartial } from './partial.js';
 import type { Tool } from './tool.js';
 import type { JsonSchemaObject, JsonSchemaProperty } from './types.js';
 
@@ -81,18 +81,18 @@ export function yamlSchemaToJsonSchema(yamlSchema: Record<string, unknown>): Jso
   };
 }
 
-// ─── Skill interpolation ──────────────────────────────────────────────────────
+// ─── Partial interpolation ────────────────────────────────────────────────────
 
-function resolveSkillInterpolations(instructions: string): string {
-  return instructions.replace(/\{\{skill:([^}]+)\}\}/g, (_, name: string) => {
-    const skillName = name.trim();
-    if (!hasSkill(skillName)) {
+function resolvePartialInterpolations(instructions: string): string {
+  return instructions.replace(/\{\{partial:([^}]+)\}\}/g, (_, name: string) => {
+    const partialName = name.trim();
+    if (!hasPartial(partialName)) {
       throw new Error(
-        `Skill "${skillName}" referenced in agent instructions but not registered. ` +
-          `Call loadSkillsFrom() or registerSkill() before loadAgent().`,
+        `Partial "${partialName}" referenced in agent instructions but not registered. ` +
+          `Call loadPartialsFrom() or registerPartial() before loadAgent().`,
       );
     }
-    return getSkill(skillName).instructions;
+    return getPartial(partialName).instructions;
   });
 }
 
@@ -109,7 +109,7 @@ function parseAgentConfig(content: string, options?: LoadAgentOptions): AgentCon
   const name = data['name'] as string | undefined;
   if (!name) throw new Error('Agent markdown must have a "name" field in frontmatter.');
 
-  const instructions = resolveSkillInterpolations(body.trim());
+  const instructions = resolvePartialInterpolations(body.trim());
 
   const toolNames: string[] = Array.isArray(data['tools']) ? (data['tools'] as string[]) : [];
   const resolvedTools = toolNames.map((toolName) => {
@@ -140,7 +140,7 @@ function parseAgentConfig(content: string, options?: LoadAgentOptions): AgentCon
 
 /**
  * Parse an agent from markdown string content and return an AgentRunner.
- * Skills referenced via `{{skill:name}}` must already be registered.
+ * Partials referenced via `{{partial:name}}` must already be registered.
  *
  * @example
  * const runner = parseAgent(`
@@ -172,10 +172,10 @@ export async function loadAgent(
 
 /**
  * Load all `.md` files in a directory as agents and register them by name.
- * Skills must be loaded first if agents reference `{{skill:name}}`.
+ * Partials must be loaded first if agents reference `{{partial:name}}`.
  *
  * @example
- * await loadSkillsFrom('./skills');
+ * await loadPartialsFrom('./partials');
  * await loadAgentsFrom('./agents', { tools: { 'web-fetch': webFetch } });
  * const response = await getAgent('researcher').prompt('What is TypeScript?');
  */

@@ -35,13 +35,13 @@ configure({
 
 `configure()` sets the global default. Every agent you create after this will use Claude 3.5 Sonnet unless you override `model` in its frontmatter.
 
-## Step 2: Define shared behaviour as skills
+## Step 2: Define shared behaviour as partials
 
-The three reviewers all share the same professional voice and output format. Rather than copy-pasting those instructions into each agent, pull them out into skills.
+The three reviewers all share the same professional voice and output format. Rather than copy-pasting those instructions into each agent, pull them out into partials.
 
-Create a `skills/` directory:
+Create a `partials/` directory:
 
-**`skills/editor-voice.md`**
+**`partials/editor-voice.md`**
 
 ```markdown
 ---
@@ -53,7 +53,7 @@ issues with concrete suggestions for improvement. Never pad feedback with praise
 for its own sake. When something is good, say nothing and move on.
 ```
 
-**`skills/review-format.md`**
+**`partials/review-format.md`**
 
 ```markdown
 ---
@@ -70,7 +70,7 @@ End with an overall verdict: APPROVE, REVISE, or REJECT.
 
 ## Step 3: Create the reviewer agents
 
-Each reviewer is a focused specialist. The skills handle the shared boilerplate so each agent file only contains the domain-specific instructions.
+Each reviewer is a focused specialist. The partials handle the shared boilerplate so each agent file only contains the domain-specific instructions.
 
 **`agents/clarity-reviewer.md`**
 
@@ -85,8 +85,8 @@ Look for: jargon without explanation, sentences that require re-reading,
 paragraphs that try to make more than one point, and missing transitions
 between ideas.
 
-{{skill:editor-voice}}
-{{skill:review-format}}
+{{partial:editor-voice}}
+{{partial:review-format}}
 ```
 
 **`agents/seo-reviewer.md`**
@@ -102,8 +102,8 @@ Look for: missing or weak title and meta description, keyword stuffing or
 absence, lack of header hierarchy, thin sections that won't rank, and
 missing internal/external links.
 
-{{skill:editor-voice}}
-{{skill:review-format}}
+{{partial:editor-voice}}
+{{partial:review-format}}
 ```
 
 **`agents/tone-reviewer.md`**
@@ -119,8 +119,8 @@ senior software engineers who value precision over enthusiasm.
 Look for: marketing language, vague superlatives ("amazing", "powerful"),
 passive voice overuse, and any condescension toward the reader.
 
-{{skill:editor-voice}}
-{{skill:review-format}}
+{{partial:editor-voice}}
+{{partial:review-format}}
 ```
 
 ## Step 4: Add the editorial orchestrator
@@ -164,7 +164,7 @@ The orchestrator does synthesis and judgement, not mechanical review. Claude Opu
 import {
   configure,
   anthropic,
-  loadSkillsFrom,
+  loadPartialsFrom,
   loadAgentsFrom,
   getAgent,
   agentTool,
@@ -176,8 +176,8 @@ configure({
 });
 
 async function reviewPost(draftPath: string) {
-  // 1. Load skills first — agents reference them
-  await loadSkillsFrom('./skills');
+  // 1. Load partials first — agents reference them
+  await loadPartialsFrom('./partials');
 
   // 2. Load the reviewer agents (no tools needed)
   await loadAgentsFrom('./agents');
@@ -243,7 +243,7 @@ Priority fixes:
 
 This is where markdown agents pay off. Say the tone reviewer is flagging too many things as marketing language. You can open `agents/tone-reviewer.md`, adjust the instructions, and re-run — no TypeScript changes, no recompilation.
 
-You can also let a non-engineer teammate own the prompt files. They can tune the review criteria, adjust the output format in the skill, or change the approval threshold in the orchestrator — all without ever opening the codebase.
+You can also let a non-engineer teammate own the prompt files. They can tune the review criteria, adjust the output format in a partial, or change the approval threshold in the orchestrator — all without ever opening the codebase.
 
 ## What's next?
 

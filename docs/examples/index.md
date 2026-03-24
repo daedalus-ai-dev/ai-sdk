@@ -10,7 +10,7 @@ Complete, real-world examples you can copy and run. Each example demonstrates on
 | [Automated Code Review](./code-review-agent) | Orchestrator-Workers | Orchestrator reads a diff and delegates security, perf, and style reviews |
 | [Cover Letter Generator](./cover-letter-generator) | Evaluator-Optimizer | Drafts a cover letter; evaluates against a rubric; rewrites until approved |
 | [AI Development Workflow](./ai-development-workflow) | Chaining + Orchestration + Eval | Full BDD cycle: feature request → user story → three amigos → tests → implementation → review |
-| [Markdown Research Pipeline](./markdown-research-pipeline) | Orchestrator-Workers | Agents and skills defined as markdown files; researcher + writer coordinated by an orchestrator |
+| [Markdown Research Pipeline](./markdown-research-pipeline) | Orchestrator-Workers | Agents and partials defined as markdown files; researcher + writer coordinated by an orchestrator |
 
 ## Running the examples
 

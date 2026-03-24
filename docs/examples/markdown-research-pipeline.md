@@ -1,8 +1,8 @@
 # Example: Markdown Research Pipeline
 
-**Pattern:** [Orchestrator-Workers](../patterns/orchestrator-workers) · [Markdown Agents & Skills](../guide/markdown-agents)
+**Pattern:** [Orchestrator-Workers](../patterns/orchestrator-workers) · [Markdown Agents & Partials](../guide/markdown-agents)
 
-A research pipeline where agents and shared skills are defined as markdown files. An orchestrator delegates to a researcher and a writer, both loaded from disk at startup.
+A research pipeline where agents and shared partials are defined as markdown files. An orchestrator delegates to a researcher and a writer, both loaded from disk at startup.
 
 ```
 User query → Orchestrator → Researcher (web) → Writer → Final article
@@ -12,7 +12,7 @@ User query → Orchestrator → Researcher (web) → Writer → Final article
 
 ```
 project/
-├── skills/
+├── partials/
 │   ├── tone.md
 │   └── citation-style.md
 ├── agents/
@@ -22,9 +22,9 @@ project/
 └── index.ts
 ```
 
-## Skills
+## Partials
 
-**`skills/tone.md`**
+**`partials/tone.md`**
 
 ```markdown
 ---
@@ -34,7 +34,7 @@ description: Response tone guidelines
 Always respond in a clear, professional tone. Be direct and avoid unnecessary filler. Prefer active voice.
 ```
 
-**`skills/citation-style.md`**
+**`partials/citation-style.md`**
 
 ```markdown
 ---
@@ -59,8 +59,8 @@ maxIterations: 8
 You are a research specialist. Your job is to find accurate, current information
 on the topic provided. Fetch multiple sources and synthesise the key findings.
 
-{{skill:tone}}
-{{skill:citation-style}}
+{{partial:tone}}
+{{partial:citation-style}}
 ```
 
 **`agents/writer.md`**
@@ -77,7 +77,7 @@ schema:
 You are a professional writer. Turn research notes into a polished article.
 Write for a general audience. Output valid JSON matching the schema.
 
-{{skill:tone}}
+{{partial:tone}}
 ```
 
 **`agents/orchestrator.md`**
@@ -104,7 +104,7 @@ Do not write content yourself — always delegate.
 import {
   configure,
   anthropic,
-  loadSkillsFrom,
+  loadPartialsFrom,
   loadAgentsFrom,
   getAgent,
   agentTool,
@@ -113,8 +113,8 @@ import {
 
 configure({ provider: anthropic('claude-3-5-sonnet-20241022') });
 
-// 1. Load shared skills first
-await loadSkillsFrom('./skills');
+// 1. Load shared partials first
+await loadPartialsFrom('./partials');
 
 // 2. Load worker agents with their tool dependencies
 await loadAgentsFrom('./agents', {

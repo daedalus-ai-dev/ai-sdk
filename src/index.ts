@@ -116,13 +116,13 @@ export { parseAgent, loadAgent, loadAgentsFrom, yamlSchemaToJsonSchema } from '.
 export type { LoadAgentOptions } from './loader.js';
 
 export {
-  parseSkill,
-  loadSkill,
-  loadSkillsFrom,
-  registerSkill,
-  getSkill,
-  hasSkill,
-  listSkills,
-  clearSkills,
-} from './skill.js';
-export type { Skill } from './skill.js';
+  parsePartial,
+  loadPartial,
+  loadPartialsFrom,
+  registerPartial,
+  getPartial,
+  hasPartial,
+  listPartials,
+  clearPartials,
+} from './partial.js';
+export type { PromptPartial } from './partial.js';

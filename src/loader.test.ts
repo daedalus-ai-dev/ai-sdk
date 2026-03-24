@@ -1,19 +1,19 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parseSkill, registerSkill, clearSkills, hasSkill, getSkill, listSkills } from './skill.js';
+import { parsePartial, registerPartial, clearPartials, hasPartial, getPartial, listPartials } from './partial.js';
 import { parseAgent, yamlSchemaToJsonSchema } from './loader.js';
 import { clearAgents } from './registry.js';
 import { defineTool } from './tool.js';
 
 beforeEach(() => {
-  clearSkills();
+  clearPartials();
   clearAgents();
 });
 
-// ─── parseSkill ───────────────────────────────────────────────────────────────
+// ─── parsePartial ─────────────────────────────────────────────────────────────
 
-describe('parseSkill', () => {
+describe('parsePartial', () => {
   it('parses name and instructions from frontmatter + body', () => {
-    const skill = parseSkill(`
+    const partial = parsePartial(`
 ---
 name: summarizer
 description: Condenses content
@@ -21,45 +21,45 @@ description: Condenses content
 Summarize the content in bullet points.
     `.trim());
 
-    expect(skill.name).toBe('summarizer');
-    expect(skill.description).toBe('Condenses content');
-    expect(skill.instructions).toBe('Summarize the content in bullet points.');
+    expect(partial.name).toBe('summarizer');
+    expect(partial.description).toBe('Condenses content');
+    expect(partial.instructions).toBe('Summarize the content in bullet points.');
   });
 
   it('throws if name is missing', () => {
-    expect(() => parseSkill(`---\ndescription: no name\n---\nbody`))
+    expect(() => parsePartial(`---\ndescription: no name\n---\nbody`))
       .toThrow('"name"');
   });
 
   it('trims whitespace from instructions', () => {
-    const skill = parseSkill(`---\nname: test\n---\n\n  body  \n`);
-    expect(skill.instructions).toBe('body');
+    const partial = parsePartial(`---\nname: test\n---\n\n  body  \n`);
+    expect(partial.instructions).toBe('body');
   });
 });
 
-// ─── skill registry ───────────────────────────────────────────────────────────
+// ─── partial registry ─────────────────────────────────────────────────────────
 
-describe('skill registry', () => {
-  it('registers and retrieves skills', () => {
-    registerSkill('foo', { name: 'foo', instructions: 'do foo' });
-    expect(hasSkill('foo')).toBe(true);
-    expect(getSkill('foo').instructions).toBe('do foo');
+describe('partial registry', () => {
+  it('registers and retrieves partials', () => {
+    registerPartial('foo', { name: 'foo', instructions: 'do foo' });
+    expect(hasPartial('foo')).toBe(true);
+    expect(getPartial('foo').instructions).toBe('do foo');
   });
 
-  it('listSkills returns all registered names', () => {
-    registerSkill('a', { name: 'a', instructions: '' });
-    registerSkill('b', { name: 'b', instructions: '' });
-    expect(listSkills()).toEqual(expect.arrayContaining(['a', 'b']));
+  it('listPartials returns all registered names', () => {
+    registerPartial('a', { name: 'a', instructions: '' });
+    registerPartial('b', { name: 'b', instructions: '' });
+    expect(listPartials()).toEqual(expect.arrayContaining(['a', 'b']));
   });
 
-  it('getSkill throws for unknown skill', () => {
-    expect(() => getSkill('unknown')).toThrow('"unknown"');
+  it('getPartial throws for unknown partial', () => {
+    expect(() => getPartial('unknown')).toThrow('"unknown"');
   });
 
-  it('clearSkills empties the registry', () => {
-    registerSkill('a', { name: 'a', instructions: '' });
-    clearSkills();
-    expect(hasSkill('a')).toBe(false);
+  it('clearPartials empties the registry', () => {
+    registerPartial('a', { name: 'a', instructions: '' });
+    clearPartials();
+    expect(hasPartial('a')).toBe(false);
   });
 });
 
@@ -136,18 +136,18 @@ You are a helpful assistant.
     ).toThrow('"missing-tool"');
   });
 
-  it('interpolates {{skill:name}} in instructions', () => {
-    registerSkill('greeting', { name: 'greeting', instructions: 'Always say hello first.' });
+  it('interpolates {{partial:name}} in instructions', () => {
+    registerPartial('greeting', { name: 'greeting', instructions: 'Always say hello first.' });
 
     // We can't read private fields on AgentRunner, but parsing should not throw
     expect(() =>
-      parseAgent(`---\nname: agent\n---\n{{skill:greeting}}\nThen help the user.`),
+      parseAgent(`---\nname: agent\n---\n{{partial:greeting}}\nThen help the user.`),
     ).not.toThrow();
   });
 
-  it('throws if a referenced skill is not registered', () => {
+  it('throws if a referenced partial is not registered', () => {
     expect(() =>
-      parseAgent(`---\nname: agent\n---\n{{skill:unknown}}`),
+      parseAgent(`---\nname: agent\n---\n{{partial:unknown}}`),
     ).toThrow('"unknown"');
   });
 

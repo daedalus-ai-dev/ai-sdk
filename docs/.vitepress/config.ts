@@ -44,7 +44,7 @@ export default defineConfig({
             { text: 'Streaming', link: '/guide/streaming' },
             { text: 'MCP Tools', link: '/guide/mcp' },
             { text: 'Zod Schemas', link: '/guide/zod' },
-            { text: 'Markdown Agents & Skills', link: '/guide/markdown-agents' },
+            { text: 'Markdown Agents & Partials', link: '/guide/markdown-agents' },
           ],
         },
       ],
@@ -91,7 +91,7 @@ export default defineConfig({
             { text: 'Context Window', link: '/api/context-manager' },
             { text: 'Checkpointing', link: '/api/checkpoint' },
             { text: 'Markdown Loader', link: '/api/loader' },
-            { text: 'Skills', link: '/api/skill' },
+            { text: 'Partials', link: '/api/partial' },
           ],
         },
         {
