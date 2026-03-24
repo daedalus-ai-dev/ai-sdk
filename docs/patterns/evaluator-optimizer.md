@@ -10,6 +10,15 @@ Input → Generator → Evaluator → approved? ──Yes──► Output
                     Improver ──────────────────────► (repeat)
 ```
 
+::: tip Use `refine()` for this pattern
+The SDK ships a first-class primitive for this loop: [`refine()`](/api/refine).
+It handles the iteration counter, max-iterations ceiling, and — uniquely — exposes the **previous state** to the exit condition so you can detect when the model has stopped making progress and bail early.
+
+See the ready-to-run examples:
+- [TDD Code Generator](/examples/tdd-code-generator) — red/green/refactor loop
+- [BDD Three Amigos](/examples/bdd-three-amigos) — consensus loop with parallel Dev + QA roles
+:::
+
 ## When to use it
 
 - The quality of the output can be assessed by another LLM or a programmatic check
