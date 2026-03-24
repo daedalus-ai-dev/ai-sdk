@@ -114,6 +114,36 @@ step<TOut>(step: WorkflowStep<TCurrent, TOut>): WorkflowBuilder<TInitial, TOut>
 
 Add a single serial step.
 
+### `.branch(config)`
+
+```ts
+branch<TOut>(config: {
+  name: string;
+  select: (input: TCurrent) => string;
+  cases: Record<string, WorkflowStep<TCurrent, TOut>>;
+  default?: WorkflowStep<TCurrent, TOut>;
+}): WorkflowBuilder<TInitial, TOut>
+```
+
+Add a routing stage. `select` extracts a string key from the current output; the matching entry in `cases` is executed. If no key matches and `default` is provided, it runs instead — otherwise an error is thrown.
+
+All cases must return the same type `TOut`.
+
+```ts
+workflow<Request>()
+  .step({ name: 'classify', run: classify })
+  .branch({
+    name: 'route',
+    select: (req) => req.category,
+    cases: {
+      technical: fromSkill('tech',    techSkill),
+      billing:   fromSkill('billing', billingSkill),
+    },
+    default: fromSkill('general', generalSkill),
+  })
+  .build();
+```
+
 ### `.build()`
 
 ```ts
@@ -148,10 +178,31 @@ interface WorkflowResult<TOut> {
 
 ```ts
 interface StageResult {
-  type: 'parallel' | 'serial';
-  /** Step name — serial stages only. */
+  type: 'parallel' | 'serial' | 'branch';
+  /** Step name for serial/branch stages. */
   name?: string;
+  /** Key selected — branch stages only. */
+  selectedCase?: string;
   durationMs: number;
+  /** true when restored from a checkpoint store instead of re-run. */
+  resumed?: boolean;
+}
+```
+
+### `WorkflowCheckpointStore`
+
+```ts
+interface WorkflowCheckpointStore {
+  get(stageIndex: number): Promise<unknown | undefined>;
+  set(stageIndex: number, output: unknown): Promise<void>;
+}
+```
+
+### `WorkflowRunOptions`
+
+```ts
+interface WorkflowRunOptions {
+  checkpointStore?: WorkflowCheckpointStore;
 }
 ```
 
@@ -211,3 +262,36 @@ The `accumulate` step receives an **array** of the parallel step outputs, not a 
 ::: warning Error handling
 If any parallel step throws, the entire workflow fails. Wrap individual step `run` functions with try/catch if you need partial-result tolerance.
 :::
+
+---
+
+## Checkpointing
+
+Pass a `checkpointStore` to `run()` to enable resume-on-failure. Each stage's output is saved after it completes. On retry, stages with saved outputs are skipped (`resumed: true`) and execution continues from the first unsaved stage.
+
+```ts
+import { inMemoryCheckpointStore } from '@daedalus-ai-dev/ai-sdk';
+
+const store = inMemoryCheckpointStore();
+
+// First attempt — fails at stage 2
+try {
+  await pipeline.run(input, { checkpointStore: store });
+} catch (e) {
+  console.error('failed:', e);
+}
+
+// Retry — stage 1 is skipped, stage 2 is retried
+const { output, stages } = await pipeline.run(input, { checkpointStore: store });
+console.log(stages[0]?.resumed); // true — loaded from store
+console.log(stages[1]?.resumed); // undefined — re-executed
+```
+
+`inMemoryCheckpointStore()` keeps outputs in a `Map` for the lifetime of the process. For cross-process or cross-restart resumption, provide a persistent store:
+
+```ts
+const store: WorkflowCheckpointStore = {
+  async get(i) { return redis.get(`stage:${i}`).then(JSON.parse); },
+  async set(i, v) { await redis.set(`stage:${i}`, JSON.stringify(v)); },
+};
+```
