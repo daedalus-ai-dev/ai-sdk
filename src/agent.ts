@@ -7,13 +7,14 @@ import type {
   StreamedAgentResponse,
   Usage,
   SchemaInput,
+  SchemaFn,
   JsonSchemaObject,
   ChatRequest,
 } from './types.js';
 import type { Tool } from './tool.js';
 import { toolToDefinition } from './tool.js';
 import { buildSchema } from './schema.js';
-import { isZodSchema, zodToJsonSchema } from './zod.js';
+import { isZodSchema, zodToJsonSchema, isRawJsonSchema } from './zod.js';
 import type { ContextManager } from './context-manager.js';
 import type { Checkpoint } from './types.js';
 import { InterruptError } from './checkpoint.js';
@@ -128,9 +129,13 @@ class AgentRunner {
 
     let responseSchema: JsonSchemaObject | undefined;
     if (this.schema) {
-      responseSchema = isZodSchema(this.schema)
-        ? zodToJsonSchema(this.schema)
-        : buildSchema(this.schema);
+      if (isZodSchema(this.schema)) {
+        responseSchema = zodToJsonSchema(this.schema);
+      } else if (isRawJsonSchema(this.schema)) {
+        responseSchema = this.schema as JsonSchemaObject;
+      } else {
+        responseSchema = buildSchema(this.schema as SchemaFn);
+      }
     }
 
     const totalUsage: Usage = { ...accUsage };
