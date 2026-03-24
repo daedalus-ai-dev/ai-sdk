@@ -61,6 +61,9 @@ export {
   registerAgent,
   unregisterAgent,
 } from './registry.js';
+export type { RetryOptions } from './retry.js';
+// ─── Resilience ───────────────────────────────────────────────────────────────
+export { isRetriableError, withFallback, withRetry } from './retry.js';
 // ─── Schema builder ───────────────────────────────────────────────────────────
 export { buildSchema, schema } from './schema.js';
 export type { SkillConfig, SkillResult, SkillRunner } from './skill.js';

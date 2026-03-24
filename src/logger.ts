@@ -184,3 +184,26 @@ export function refineDone(iterations: number): void {
   out(`  ${GR}✓${R}  ${d}completed in ${iterations} iteration(s)${R}`);
   out('');
 }
+
+// ─── Resilience ───────────────────────────────────────────────────────────────
+
+export function retryAttempt(
+  attempt: number,
+  maxAttempts: number,
+  delayMs: number,
+  error: unknown,
+): void {
+  if (!_debug) return;
+  const reason = error instanceof Error ? trunc(error.message, 60) : String(error);
+  out(
+    `${YE}${b}↻ retry${R}  ${GY}attempt ${attempt}/${maxAttempts - 1}${R}  ${d}in ${fmtMs(delayMs)}${R}  ${RE}${reason}${R}`,
+  );
+}
+
+export function fallbackActivated(providerIndex: number, total: number, error: unknown): void {
+  if (!_debug) return;
+  const reason = error instanceof Error ? trunc(error.message, 60) : String(error);
+  out(
+    `${YE}${b}⤵ fallback${R}  ${GY}trying provider ${providerIndex + 1}/${total}${R}  ${RE}${reason}${R}`,
+  );
+}
