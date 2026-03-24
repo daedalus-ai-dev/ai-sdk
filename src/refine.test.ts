@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { refine, RefineLimitError } from './refine.js';
+import { describe, expect, it, vi } from 'vitest';
+import { RefineLimitError, refine } from './refine.js';
 
 // ─── Basic behaviour ──────────────────────────────────────────────────────────
 
@@ -19,8 +19,7 @@ describe('refine()', () => {
     const result = await refine({
       state: 0,
       step: async (n) => n + 1,
-      until: (curr) =>
-        curr >= 3 ? { done: true, output: curr } : { done: false },
+      until: (curr) => (curr >= 3 ? { done: true, output: curr } : { done: false }),
     });
 
     expect(result.output).toBe(3);
@@ -32,8 +31,11 @@ describe('refine()', () => {
 
     await refine({
       state: 0,
-      step: async (n, i) => { iterations.push(i); return n + 1; },
-      until: (curr) => curr >= 2 ? { done: true, output: curr } : { done: false },
+      step: async (n, i) => {
+        iterations.push(i);
+        return n + 1;
+      },
+      until: (curr) => (curr >= 2 ? { done: true, output: curr } : { done: false }),
     });
 
     expect(iterations).toEqual([1, 2]);
@@ -77,7 +79,7 @@ describe('refine()', () => {
   it('returns output exactly as provided by until()', async () => {
     const result = await refine({
       state: { value: 'hello' },
-      step: async (s) => ({ value: s.value + '!' }),
+      step: async (s) => ({ value: `${s.value}!` }),
       until: (curr) =>
         curr.value.endsWith('!!!')
           ? { done: true, output: { final: curr.value } }
@@ -100,7 +102,7 @@ describe('no-progress detection via previous state', () => {
       step,
       until: (curr, prev) => {
         if (curr.code === prev.code) return { done: true, output: curr.code };
-        if (curr.code === 'fixed')   return { done: true, output: curr.code };
+        if (curr.code === 'fixed') return { done: true, output: curr.code };
         return { done: false };
       },
       maxIterations: 10,
@@ -142,16 +144,16 @@ describe('maxIterations', () => {
     }
 
     expect(caught).toBeInstanceOf(RefineLimitError);
-    expect(caught!.maxIterations).toBe(2);
-    expect(caught!.lastState).toEqual({ attempt: 2 });
+    expect(caught?.maxIterations).toBe(2);
+    expect(caught?.lastState).toEqual({ attempt: 2 });
   });
 
   it('defaults to maxIterations of 10', async () => {
     const step = vi.fn(async (n: number) => n + 1);
 
-    await expect(
-      refine({ state: 0, step, until: () => ({ done: false }) }),
-    ).rejects.toThrow(RefineLimitError);
+    await expect(refine({ state: 0, step, until: () => ({ done: false }) })).rejects.toThrow(
+      RefineLimitError,
+    );
 
     expect(step).toHaveBeenCalledTimes(10);
   });
@@ -160,7 +162,7 @@ describe('maxIterations', () => {
     const result = await refine({
       state: 0,
       step: async (n) => n + 1,
-      until: (curr) => curr === 3 ? { done: true, output: curr } : { done: false },
+      until: (curr) => (curr === 3 ? { done: true, output: curr } : { done: false }),
       maxIterations: 3,
     });
 
@@ -176,7 +178,9 @@ describe('error propagation', () => {
     await expect(
       refine({
         state: 0,
-        step: async () => { throw new Error('step blew up'); },
+        step: async () => {
+          throw new Error('step blew up');
+        },
         until: () => ({ done: false }),
       }),
     ).rejects.toThrow('step blew up');
@@ -187,7 +191,9 @@ describe('error propagation', () => {
       refine({
         state: 0,
         step: async (n) => n + 1,
-        until: () => { throw new Error('until blew up'); },
+        until: () => {
+          throw new Error('until blew up');
+        },
       }),
     ).rejects.toThrow('until blew up');
   });

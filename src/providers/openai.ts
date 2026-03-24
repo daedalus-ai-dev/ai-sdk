@@ -1,6 +1,6 @@
 import { createOpenAI } from '@ai-sdk/openai';
-import { vercelAI } from './vercel.js';
 import type { AIProvider } from '../types.js';
+import { vercelAI } from './vercel.js';
 
 export interface OpenAIOptions {
   /** OpenAI API key. Defaults to OPENAI_API_KEY env var. */

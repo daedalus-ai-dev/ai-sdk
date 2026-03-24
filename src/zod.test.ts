@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { agent } from './agent.js';
-import { defineTool } from './tool.js';
-import { isZodSchema } from './zod.js';
 import { assertComplete } from './checkpoint.js';
+import { defineTool } from './tool.js';
 import type { AIProvider, ChatResponse } from './types.js';
+import { isZodSchema } from './zod.js';
 
 // ─── Mock provider ────────────────────────────────────────────────────────────
 
@@ -56,7 +56,7 @@ describe('defineTool() with Zod schema', () => {
       name: 'calculator',
       description: 'Add two numbers',
       schema: InputSchema,
-      handle: (input) => String((input['a'] as number) + (input['b'] as number)),
+      handle: (input) => String((input.a as number) + (input.b as number)),
     });
 
     const provider = mockProvider([
@@ -71,7 +71,9 @@ describe('defineTool() with Zod schema', () => {
     ]);
 
     const response = assertComplete(
-      await agent({ instructions: 'Use tools to answer.', tools: [calculator], provider }).prompt('3 + 4?'),
+      await agent({ instructions: 'Use tools to answer.', tools: [calculator], provider }).prompt(
+        '3 + 4?',
+      ),
     );
 
     expect(response.text).toBe('The answer is 7.');
@@ -121,22 +123,30 @@ describe('agent() with Zod schema', () => {
     );
 
     // safeParse fails → falls back to raw parsed JSON
-    expect((response.structured as Record<string, unknown>)['score']).toBe('not-a-number');
+    expect((response.structured as Record<string, unknown>).score).toBe('not-a-number');
   });
 
   it('accepts a Zod schema alongside the fluent builder — both work', async () => {
     const ZodSchema = z.object({ value: z.string() });
 
     const providerZod = mockProvider([
-      { content: [{ type: 'text', text: JSON.stringify({ value: 'hello' }) }], stopReason: 'end_turn' },
+      {
+        content: [{ type: 'text', text: JSON.stringify({ value: 'hello' }) }],
+        stopReason: 'end_turn',
+      },
     ]);
     const providerFluent = mockProvider([
-      { content: [{ type: 'text', text: JSON.stringify({ value: 'hello' }) }], stopReason: 'end_turn' },
+      {
+        content: [{ type: 'text', text: JSON.stringify({ value: 'hello' }) }],
+        stopReason: 'end_turn',
+      },
     ]);
 
     const [zodResult, fluentResult] = await Promise.all([
       assertComplete(
-        await agent({ instructions: 'Test.', schema: ZodSchema, provider: providerZod }).prompt('Go'),
+        await agent({ instructions: 'Test.', schema: ZodSchema, provider: providerZod }).prompt(
+          'Go',
+        ),
       ),
       assertComplete(
         await agent({
@@ -147,7 +157,7 @@ describe('agent() with Zod schema', () => {
       ),
     ]);
 
-    expect((zodResult.structured as Record<string, unknown>)['value']).toBe('hello');
-    expect((fluentResult.structured as Record<string, unknown>)['value']).toBe('hello');
+    expect((zodResult.structured as Record<string, unknown>).value).toBe('hello');
+    expect((fluentResult.structured as Record<string, unknown>).value).toBe('hello');
   });
 });

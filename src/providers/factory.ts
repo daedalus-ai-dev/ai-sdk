@@ -1,19 +1,19 @@
 import type { AIProvider } from '../types.js';
-import { openai, type OpenAIOptions } from './openai.js';
-import { anthropic, type AnthropicOptions } from './anthropic.js';
-import { google, type GoogleOptions } from './google.js';
-import { xai, type XAIOptions } from './xai.js';
-import { openrouter, type OpenRouterOptions } from './openrouter.js';
+import { type AnthropicOptions, anthropic } from './anthropic.js';
+import { type GoogleOptions, google } from './google.js';
+import { type OpenAIOptions, openai } from './openai.js';
+import { type OpenRouterOptions, openrouter } from './openrouter.js';
+import { type XAIOptions, xai } from './xai.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type BuiltInProvider = 'openai' | 'anthropic' | 'google' | 'xai' | 'openrouter';
 
 export type CreateProviderOptions =
-  | ({ provider: 'openai' }     & OpenAIOptions)
-  | ({ provider: 'anthropic' }  & AnthropicOptions)
-  | ({ provider: 'google' }     & GoogleOptions)
-  | ({ provider: 'xai' }        & XAIOptions)
+  | ({ provider: 'openai' } & OpenAIOptions)
+  | ({ provider: 'anthropic' } & AnthropicOptions)
+  | ({ provider: 'google' } & GoogleOptions)
+  | ({ provider: 'xai' } & XAIOptions)
   | ({ provider: 'openrouter' } & Pick<OpenRouterOptions, 'apiKey'>);
 
 // ─── Factory ──────────────────────────────────────────────────────────────────

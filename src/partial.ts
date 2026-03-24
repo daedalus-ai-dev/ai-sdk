@@ -1,5 +1,5 @@
-import { readFile, readdir } from 'node:fs/promises';
-import { join, extname } from 'node:path';
+import { readdir, readFile } from 'node:fs/promises';
+import { extname, join } from 'node:path';
 import matter from 'gray-matter';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -57,12 +57,12 @@ export function clearPartials(): void {
 export function parsePartial(content: string): PromptPartial {
   const { data, content: body } = matter(content);
 
-  const name = data['name'] as string | undefined;
+  const name = data.name as string | undefined;
   if (!name) throw new Error('Partial markdown must have a "name" field in frontmatter.');
 
   return {
     name,
-    description: data['description'] as string | undefined,
+    description: data.description as string | undefined,
     instructions: body.trim(),
   };
 }

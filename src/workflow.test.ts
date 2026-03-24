@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { workflow, fromSkill, parseWorkflow, WorkflowStep } from './workflow.js';
+import { describe, expect, it, vi } from 'vitest';
+import { fromSkill, parseWorkflow, type WorkflowStep, workflow } from './workflow.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -60,14 +60,16 @@ describe('.step()', () => {
     const result = await runner.run('hi');
     expect(result.stages).toHaveLength(1);
     expect(result.stages[0]).toMatchObject({ type: 'serial', name: 'upper' });
-    expect(result.stages[0]!.durationMs).toBeGreaterThanOrEqual(0);
+    expect(result.stages[0]?.durationMs).toBeGreaterThanOrEqual(0);
   });
 
   it('propagates rejections immediately', async () => {
     const runner = workflow<string>()
       .step({
         name: 'fail',
-        run: async () => { throw new Error('step failed'); },
+        run: async () => {
+          throw new Error('step failed');
+        },
       })
       .build();
 
@@ -80,10 +82,11 @@ describe('.step()', () => {
 describe('.parallel()', () => {
   it('passes the same input to all steps', async () => {
     const received: unknown[] = [];
-    const spy = (label: string) => makeStep(label, (v: string) => {
-      received.push(v);
-      return label;
-    });
+    const spy = (label: string) =>
+      makeStep(label, (v: string) => {
+        received.push(v);
+        return label;
+      });
 
     const runner = workflow<string>()
       .parallel({
@@ -101,10 +104,7 @@ describe('.parallel()', () => {
 
     const runner = workflow<number>()
       .parallel({
-        steps: [
-          makeStep('x2', (n: number) => n * 2),
-          makeStep('x3', (n: number) => n * 3),
-        ],
+        steps: [makeStep('x2', (n: number) => n * 2), makeStep('x3', (n: number) => n * 3)],
         accumulate,
       })
       .build();
@@ -124,7 +124,7 @@ describe('.parallel()', () => {
 
     const result = await runner.run('x');
     expect(result.stages[0]).toMatchObject({ type: 'parallel' });
-    expect(result.stages[0]!.name).toBeUndefined();
+    expect(result.stages[0]?.name).toBeUndefined();
   });
 
   it('fails the whole stage if any step rejects', async () => {
@@ -134,7 +134,9 @@ describe('.parallel()', () => {
           makeStep('ok', () => 'fine'),
           {
             name: 'bad',
-            run: async () => { throw new Error('parallel step failed'); },
+            run: async () => {
+              throw new Error('parallel step failed');
+            },
           },
         ],
         accumulate: async (r) => r,
@@ -150,12 +152,12 @@ describe('.parallel()', () => {
 describe('mixed stages', () => {
   it('serial → parallel → serial chain works end to end', async () => {
     const runner = workflow<number>()
-      .step(makeStep('double', (n: number) => n * 2))                 // 3 → 6
+      .step(makeStep('double', (n: number) => n * 2)) // 3 → 6
       .parallel({
         steps: [makeStep('p1', (n: number) => n + 1), makeStep('p2', (n: number) => n + 2)],
         accumulate: async (nums: number[]) => nums.reduce((a, b) => a + b, 0), // [7,8] → 15
       })
-      .step(makeStep('negate', (n: number) => -n))                    // 15 → -15
+      .step(makeStep('negate', (n: number) => -n)) // 15 → -15
       .build();
 
     const result = await runner.run(3);
@@ -238,23 +240,16 @@ stages:
   });
 
   it('throws if "name" is missing from frontmatter', () => {
-    expect(() =>
-      parseWorkflow(`---\nstages:\n  - step: upper\n---`, registry),
-    ).toThrow('"name"');
+    expect(() => parseWorkflow(`---\nstages:\n  - step: upper\n---`, registry)).toThrow('"name"');
   });
 
   it('throws if "stages" is missing', () => {
-    expect(() =>
-      parseWorkflow(`---\nname: bad\n---`, registry),
-    ).toThrow('at least one stage');
+    expect(() => parseWorkflow(`---\nname: bad\n---`, registry)).toThrow('at least one stage');
   });
 
   it('throws if a step name is not in the registry', () => {
     expect(() =>
-      parseWorkflow(
-        `---\nname: bad\nstages:\n  - step: missing-step\n---`,
-        registry,
-      ),
+      parseWorkflow(`---\nname: bad\nstages:\n  - step: missing-step\n---`, registry),
     ).toThrow('"missing-step"');
   });
 });

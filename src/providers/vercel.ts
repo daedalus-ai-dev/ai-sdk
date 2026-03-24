@@ -1,12 +1,12 @@
-import { generateText, streamText, jsonSchema, type LanguageModel } from 'ai';
+import { generateText, jsonSchema, type LanguageModel, streamText } from 'ai';
 import type {
   AIProvider,
   ChatRequest,
   ChatResponse,
-  StreamChunk,
   Message,
   MessageContent,
   StopReason,
+  StreamChunk,
 } from '../types.js';
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -41,9 +41,9 @@ class VercelAIProvider implements AIProvider {
     const result = await generateText({
       model: this.options.model,
       system: request.systemPrompt,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // biome-ignore lint/suspicious/noExplicitAny: third-party type boundary
       messages: toVercelMessages(request.messages) as any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // biome-ignore lint/suspicious/noExplicitAny: third-party type boundary
       tools: toVercelTools(request) as any,
       maxOutputTokens: request.maxTokens,
       temperature: request.temperature,
@@ -79,9 +79,9 @@ class VercelAIProvider implements AIProvider {
     const result = streamText({
       model: this.options.model,
       system: request.systemPrompt,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // biome-ignore lint/suspicious/noExplicitAny: third-party type boundary
       messages: toVercelMessages(request.messages) as any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // biome-ignore lint/suspicious/noExplicitAny: third-party type boundary
       tools: toVercelTools(request) as any,
       maxOutputTokens: request.maxTokens,
       temperature: request.temperature,
@@ -92,7 +92,7 @@ class VercelAIProvider implements AIProvider {
     const streamedToolIds = new Set<string>();
 
     for await (const chunk of result.fullStream) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // biome-ignore lint/suspicious/noExplicitAny: third-party type boundary
       const c = chunk as any;
 
       switch (chunk.type) {
@@ -102,11 +102,19 @@ class VercelAIProvider implements AIProvider {
 
         case 'tool-input-start':
           streamedToolIds.add(c.id as string);
-          yield { type: 'tool_use_start', toolUseId: c.id as string, toolName: c.toolName as string };
+          yield {
+            type: 'tool_use_start',
+            toolUseId: c.id as string,
+            toolName: c.toolName as string,
+          };
           break;
 
         case 'tool-input-delta':
-          yield { type: 'tool_use_delta', toolUseId: c.id as string, toolInputDelta: c.delta as string };
+          yield {
+            type: 'tool_use_delta',
+            toolUseId: c.id as string,
+            toolInputDelta: c.delta as string,
+          };
           break;
 
         case 'tool-input-end':
@@ -116,8 +124,16 @@ class VercelAIProvider implements AIProvider {
         case 'tool-call':
           // Non-streaming path: emit full tool call if not already streamed.
           if (!streamedToolIds.has(c.toolCallId as string)) {
-            yield { type: 'tool_use_start', toolUseId: c.toolCallId as string, toolName: c.toolName as string };
-            yield { type: 'tool_use_delta', toolUseId: c.toolCallId as string, toolInputDelta: JSON.stringify(c.input) };
+            yield {
+              type: 'tool_use_start',
+              toolUseId: c.toolCallId as string,
+              toolName: c.toolName as string,
+            };
+            yield {
+              type: 'tool_use_delta',
+              toolUseId: c.toolCallId as string,
+              toolInputDelta: JSON.stringify(c.input),
+            };
             yield { type: 'tool_use_end', toolUseId: c.toolCallId as string };
           }
           break;
@@ -128,7 +144,10 @@ class VercelAIProvider implements AIProvider {
             type: 'message_end',
             stopReason: finishReasonToStopReason(c.finishReason as string),
             usage: c.usage
-              ? { inputTokens: (c.usage.inputTokens as number) ?? 0, outputTokens: (c.usage.outputTokens as number) ?? 0 }
+              ? {
+                  inputTokens: (c.usage.inputTokens as number) ?? 0,
+                  outputTokens: (c.usage.outputTokens as number) ?? 0,
+                }
               : undefined,
           };
           break;
@@ -141,8 +160,30 @@ class VercelAIProvider implements AIProvider {
 
 type VercelMessage =
   | { role: 'user'; content: string | Array<{ type: 'text'; text: string }> }
-  | { role: 'assistant'; content: string | Array<{ type: 'text'; text: string } | { type: 'tool-call'; toolCallId: string; toolName: string; input: Record<string, unknown> }> }
-  | { role: 'tool'; content: Array<{ type: 'tool-result'; toolCallId: string; toolName: string; output: string; isError?: boolean }> };
+  | {
+      role: 'assistant';
+      content:
+        | string
+        | Array<
+            | { type: 'text'; text: string }
+            | {
+                type: 'tool-call';
+                toolCallId: string;
+                toolName: string;
+                input: Record<string, unknown>;
+              }
+          >;
+    }
+  | {
+      role: 'tool';
+      content: Array<{
+        type: 'tool-result';
+        toolCallId: string;
+        toolName: string;
+        output: string;
+        isError?: boolean;
+      }>;
+    };
 
 function toVercelMessages(sdkMessages: Message[]): VercelMessage[] {
   // Build toolUseId→toolName as we go so tool-result messages can include toolName.
@@ -160,7 +201,12 @@ function toVercelMessages(sdkMessages: Message[]): VercelMessage[] {
     if (msg.role === 'assistant') {
       const parts: Array<
         | { type: 'text'; text: string }
-        | { type: 'tool-call'; toolCallId: string; toolName: string; input: Record<string, unknown> }
+        | {
+            type: 'tool-call';
+            toolCallId: string;
+            toolName: string;
+            input: Record<string, unknown>;
+          }
       > = [];
 
       for (const c of msg.content) {
@@ -177,7 +223,13 @@ function toVercelMessages(sdkMessages: Message[]): VercelMessage[] {
     }
 
     if (msg.role === 'user') {
-      const toolResults: Array<{ type: 'tool-result'; toolCallId: string; toolName: string; output: string; isError?: boolean }> = [];
+      const toolResults: Array<{
+        type: 'tool-result';
+        toolCallId: string;
+        toolName: string;
+        output: string;
+        isError?: boolean;
+      }> = [];
       const textParts: Array<{ type: 'text'; text: string }> = [];
 
       for (const c of msg.content) {
@@ -225,9 +277,13 @@ function toVercelTools(
 
 function finishReasonToStopReason(reason: string): StopReason {
   switch (reason) {
-    case 'tool-calls': return 'tool_use';
-    case 'length':     return 'max_tokens';
-    case 'stop':       return 'end_turn';
-    default:           return 'end_turn';
+    case 'tool-calls':
+      return 'tool_use';
+    case 'length':
+      return 'max_tokens';
+    case 'stop':
+      return 'end_turn';
+    default:
+      return 'end_turn';
   }
 }

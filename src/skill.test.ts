@@ -1,5 +1,13 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { skill, registerSkill, getSkill, hasSkill, listSkills, clearSkills, parseSkill } from './skill.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  clearSkills,
+  getSkill,
+  hasSkill,
+  listSkills,
+  parseSkill,
+  registerSkill,
+  skill,
+} from './skill.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -32,8 +40,11 @@ describe('skill()', () => {
   it('invoke passes a string input directly as the prompt', async () => {
     const { agent } = await import('./agent.js');
     const mockPrompt = vi.fn().mockResolvedValue({
-      text: 'ok', structured: {}, usage: { inputTokens: 1, outputTokens: 1 },
-      messages: [], checkpoint: {},
+      text: 'ok',
+      structured: {},
+      usage: { inputTokens: 1, outputTokens: 1 },
+      messages: [],
+      checkpoint: {},
     });
     vi.mocked(agent).mockReturnValueOnce({ prompt: mockPrompt } as any);
 
@@ -46,8 +57,11 @@ describe('skill()', () => {
   it('invoke JSON-stringifies object inputs when no template is provided', async () => {
     const { agent } = await import('./agent.js');
     const mockPrompt = vi.fn().mockResolvedValue({
-      text: 'ok', structured: {}, usage: { inputTokens: 1, outputTokens: 1 },
-      messages: [], checkpoint: {},
+      text: 'ok',
+      structured: {},
+      usage: { inputTokens: 1, outputTokens: 1 },
+      messages: [],
+      checkpoint: {},
     });
     vi.mocked(agent).mockReturnValueOnce({ prompt: mockPrompt } as any);
 
@@ -62,8 +76,11 @@ describe('skill()', () => {
   it('uses template function when provided', async () => {
     const { agent } = await import('./agent.js');
     const mockPrompt = vi.fn().mockResolvedValue({
-      text: 'ok', structured: {}, usage: { inputTokens: 1, outputTokens: 1 },
-      messages: [], checkpoint: {},
+      text: 'ok',
+      structured: {},
+      usage: { inputTokens: 1, outputTokens: 1 },
+      messages: [],
+      checkpoint: {},
     });
     vi.mocked(agent).mockReturnValueOnce({ prompt: mockPrompt } as any);
 
@@ -100,9 +117,7 @@ describe('skill()', () => {
     const runner = skill({ instructions: 'Do it.' });
     await runner.invoke('input');
 
-    expect(vi.mocked(agent)).toHaveBeenCalledWith(
-      expect.objectContaining({ maxIterations: 1 }),
-    );
+    expect(vi.mocked(agent)).toHaveBeenCalledWith(expect.objectContaining({ maxIterations: 1 }));
   });
 
   it('forwards model, temperature, and maxTokens to the agent', async () => {
@@ -160,26 +175,30 @@ describe('skill registry', () => {
 
 describe('parseSkill', () => {
   it('parses a skill from markdown and returns a runner', () => {
-    const runner = parseSkill(`
+    const runner = parseSkill(
+      `
 ---
 name: summarize
 model: openai/gpt-4o-mini
 ---
 Summarize the provided text.
-    `.trim());
+    `.trim(),
+    );
 
     expect(typeof runner.invoke).toBe('function');
   });
 
   it('throws if name is missing from frontmatter', () => {
-    expect(() => parseSkill(`---\nmodel: openai/gpt-4o-mini\n---\nInstructions.`))
-      .toThrow('"name"');
+    expect(() => parseSkill(`---\nmodel: openai/gpt-4o-mini\n---\nInstructions.`)).toThrow(
+      '"name"',
+    );
   });
 
   it('converts YAML output schema to JSON Schema', async () => {
     const { agent } = await import('./agent.js');
 
-    parseSkill(`
+    parseSkill(
+      `
 ---
 name: extract
 output:
@@ -187,7 +206,8 @@ output:
   tags: string[]
 ---
 Extract information.
-    `.trim());
+    `.trim(),
+    );
 
     expect(vi.mocked(agent)).not.toHaveBeenCalled(); // no call yet — just parsed
   });

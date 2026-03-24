@@ -1,5 +1,5 @@
-import type { ToolDefinition, JsonSchemaObject, SchemaFn, SchemaInput } from './types.js';
 import { buildSchema } from './schema.js';
+import type { JsonSchemaObject, SchemaFn, SchemaInput, ToolDefinition } from './types.js';
 import { isZodSchema, zodToJsonSchema } from './zod.js';
 
 // ─── Tool interface ───────────────────────────────────────────────────────────
@@ -10,7 +10,9 @@ export interface Tool {
   /** Human-readable description telling the LLM when and how to use this tool. */
   description(): string;
   /** Input schema definition using the fluent JsonSchema builder. */
-  schema(builder: import('./types.js').SchemaBuilder): Record<string, import('./types.js').PropertyBuilder>;
+  schema(
+    builder: import('./types.js').SchemaBuilder,
+  ): Record<string, import('./types.js').PropertyBuilder>;
   /** Execute the tool and return a string result (or a promise thereof). */
   handle(input: Record<string, unknown>): Promise<string> | string;
 }
@@ -23,9 +25,10 @@ export const RAW_INPUT_SCHEMA = Symbol('rawInputSchema');
 export function toolToDefinition(tool: Tool): ToolDefinition {
   // MCP adapter tools carry a pre-built JSON Schema — skip the builder
   const raw = (tool as unknown as Record<symbol, unknown>)[RAW_INPUT_SCHEMA];
-  const inputSchema = raw !== undefined
-    ? raw as JsonSchemaObject
-    : buildSchema(tool.schema.bind(tool) as SchemaFn) as JsonSchemaObject;
+  const inputSchema =
+    raw !== undefined
+      ? (raw as JsonSchemaObject)
+      : (buildSchema(tool.schema.bind(tool) as SchemaFn) as JsonSchemaObject);
 
   return {
     name: tool.name(),
@@ -50,7 +53,8 @@ export function defineTool(options: FunctionalToolOptions): Tool {
     const tool: Tool & Record<symbol, unknown> = {
       name: () => options.name,
       description: () => options.description,
-      schema: (_: import('./types.js').SchemaBuilder) => ({} as Record<string, import('./types.js').PropertyBuilder>),
+      schema: (_: import('./types.js').SchemaBuilder) =>
+        ({}) as Record<string, import('./types.js').PropertyBuilder>,
       handle: options.handle,
     };
     tool[RAW_INPUT_SCHEMA] = inputSchema;

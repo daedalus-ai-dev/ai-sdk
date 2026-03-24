@@ -24,10 +24,7 @@ export interface RefineConfig<TState, TOutput> {
    *
    * Return `{ done: true, output }` to stop, or `{ done: false }` to continue.
    */
-  until: (
-    current: TState,
-    previous: TState,
-  ) => { done: true; output: TOutput } | { done: false };
+  until: (current: TState, previous: TState) => { done: true; output: TOutput } | { done: false };
   /**
    * Hard ceiling on the number of iterations.
    * Throws `RefineLimitError` if exceeded.
@@ -35,6 +32,8 @@ export interface RefineConfig<TState, TOutput> {
    */
   maxIterations?: number;
 }
+
+import * as log from './logger.js';
 
 // ─── Error ────────────────────────────────────────────────────────────────────
 
@@ -86,13 +85,17 @@ export async function refine<TState, TOutput>(
   let current = config.state;
 
   for (let i = 0; i < maxIterations; i++) {
+    log.refineIteration(i + 1, maxIterations);
     const previous = current;
     current = await step(current, i + 1);
 
     const check = until(current, previous);
     if (check.done) {
+      log.refineUntilResult(true);
+      log.refineDone(i + 1);
       return { output: check.output, iterations: i + 1 };
     }
+    log.refineUntilResult(false);
   }
 
   throw new RefineLimitError(maxIterations, current);

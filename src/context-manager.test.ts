@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
-import { slidingWindow, tokenBudget, summarizing } from './context-manager.js';
-import type { Message, AIProvider } from './types.js';
+import { describe, expect, it, vi } from 'vitest';
+import { slidingWindow, summarizing, tokenBudget } from './context-manager.js';
+import type { AIProvider, Message } from './types.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -50,7 +50,10 @@ describe('slidingWindow', () => {
     // maxMessages=3 would keep [toolResultMsg, assistantMsg, userMsg]
     // toolResultMsg is orphaned (its tool_use was cut) — should be dropped
     const result = slidingWindow(3).manage(msgs) as Message[];
-    expect(result[0]).not.toMatchObject({ role: 'user', content: expect.arrayContaining([expect.objectContaining({ type: 'tool_result' })]) });
+    expect(result[0]).not.toMatchObject({
+      role: 'user',
+      content: expect.arrayContaining([expect.objectContaining({ type: 'tool_result' })]),
+    });
   });
 
   it('returns all messages when equal to the limit', () => {
@@ -86,14 +89,12 @@ describe('tokenBudget', () => {
 
   it('drops orphaned tool_result at the start', () => {
     const long = 'x'.repeat(1000);
-    const msgs = [
-      toolUseMsg('id1'),
-      toolResultMsg('id1'),
-      userMsg(long),
-      assistantMsg(long),
-    ];
+    const msgs = [toolUseMsg('id1'), toolResultMsg('id1'), userMsg(long), assistantMsg(long)];
     const result = tokenBudget(300).manage(msgs) as Message[];
-    expect(result[0]).not.toMatchObject({ role: 'user', content: expect.arrayContaining([expect.objectContaining({ type: 'tool_result' })]) });
+    expect(result[0]).not.toMatchObject({
+      role: 'user',
+      content: expect.arrayContaining([expect.objectContaining({ type: 'tool_result' })]),
+    });
   });
 });
 
@@ -123,7 +124,7 @@ describe('summarizing', () => {
   it('summarizes old messages and keeps recent ones', async () => {
     const provider = makeProvider('This is the summary.');
     const msgs = Array.from({ length: 12 }, (_, i) =>
-      i % 2 === 0 ? userMsg(`user ${i}`) : assistantMsg(`assistant ${i}`)
+      i % 2 === 0 ? userMsg(`user ${i}`) : assistantMsg(`assistant ${i}`),
     );
     const result = await summarizing({ provider, model: 'test', keepRecent: 4 }).manage(msgs);
 
@@ -143,7 +144,9 @@ describe('summarizing', () => {
       summaryPrompt: 'Custom prompt:',
     }).manage(msgs);
 
-    const callArg = (provider.chat as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as { messages: Message[] };
+    const callArg = (provider.chat as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
+      messages: Message[];
+    };
     expect(callArg.messages[0]?.content as string).toContain('Custom prompt:');
   });
 

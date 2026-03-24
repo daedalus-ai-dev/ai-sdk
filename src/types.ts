@@ -249,9 +249,18 @@ export class StringPropertyBuilder extends PropertyBuilder {
   private _maxLength?: number;
   private _pattern?: string;
 
-  minLength(n: number): this { this._minLength = n; return this; }
-  maxLength(n: number): this { this._maxLength = n; return this; }
-  pattern(regex: string): this { this._pattern = regex; return this; }
+  minLength(n: number): this {
+    this._minLength = n;
+    return this;
+  }
+  maxLength(n: number): this {
+    this._maxLength = n;
+    return this;
+  }
+  pattern(regex: string): this {
+    this._pattern = regex;
+    return this;
+  }
 
   toSchema(): JsonSchemaProperty {
     const s: JsonSchemaString = { type: 'string' };
@@ -267,8 +276,14 @@ export class NumberPropertyBuilder extends PropertyBuilder {
   private _min?: number;
   private _max?: number;
 
-  min(n: number): this { this._min = n; return this; }
-  max(n: number): this { this._max = n; return this; }
+  min(n: number): this {
+    this._min = n;
+    return this;
+  }
+  max(n: number): this {
+    this._max = n;
+    return this;
+  }
 
   toSchema(): JsonSchemaProperty {
     const s: JsonSchemaNumber = { type: 'number' };
@@ -283,8 +298,14 @@ export class IntegerPropertyBuilder extends PropertyBuilder {
   private _min?: number;
   private _max?: number;
 
-  min(n: number): this { this._min = n; return this; }
-  max(n: number): this { this._max = n; return this; }
+  min(n: number): this {
+    this._min = n;
+    return this;
+  }
+  max(n: number): this {
+    this._max = n;
+    return this;
+  }
 
   toSchema(): JsonSchemaProperty {
     const s: JsonSchemaInteger = { type: 'integer' };
@@ -320,7 +341,9 @@ export class ArrayPropertyBuilder extends PropertyBuilder {
 }
 
 export class EnumPropertyBuilder extends PropertyBuilder {
-  constructor(private readonly _values: string[]) { super(); }
+  constructor(private readonly _values: string[]) {
+    super();
+  }
 
   toSchema(): JsonSchemaProperty {
     const s: JsonSchemaEnum = { type: 'string', enum: this._values };

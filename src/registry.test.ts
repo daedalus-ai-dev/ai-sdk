@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  registerAgent,
+  agentTool,
+  clearAgents,
   getAgent,
   hasAgent,
   listAgents,
+  registerAgent,
   unregisterAgent,
-  clearAgents,
-  agentTool,
 } from './registry.js';
 
 // ─── Mock agent() so tests don't need a real provider ─────────────────────────
@@ -39,9 +39,7 @@ describe('registerAgent / getAgent', () => {
   });
 
   it('throws for an unknown agent', () => {
-    expect(() => getAgent('unknown')).toThrow(
-      'Agent "unknown" not registered',
-    );
+    expect(() => getAgent('unknown')).toThrow('Agent "unknown" not registered');
   });
 
   it('overwrites an existing registration', () => {
@@ -139,8 +137,6 @@ describe('agentTool', () => {
 
   it('throws when the referenced agent is not registered', async () => {
     const tool = agentTool('ghost');
-    await expect(tool.handle({ task: 'hello' })).rejects.toThrow(
-      'Agent "ghost" not registered',
-    );
+    await expect(tool.handle({ task: 'hello' })).rejects.toThrow('Agent "ghost" not registered');
   });
 });

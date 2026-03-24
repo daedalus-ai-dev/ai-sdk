@@ -1,10 +1,12 @@
-import { readFile, readdir } from 'node:fs/promises';
-import { join, extname } from 'node:path';
+import { readdir, readFile } from 'node:fs/promises';
+import { extname, join } from 'node:path';
 import matter from 'gray-matter';
 import { agent } from './agent.js';
-import { isZodSchema } from './zod.js';
 import { yamlSchemaToJsonSchema } from './loader.js';
+import * as log from './logger.js';
+import { enterSkillContext, exitSkillContext } from './logger.js';
 import type { SchemaInput } from './types.js';
+import { isZodSchema } from './zod.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,6 +78,9 @@ export function skill<TInput = unknown, TOutput = unknown>(
           ? input
           : JSON.stringify(input, null, 2);
 
+      log.skillStart(config.instructions);
+      log.skillPrompt(userPrompt);
+
       // Single-shot call — no tools, one iteration
       const runner = agent({
         instructions: config.instructions,
@@ -86,13 +91,15 @@ export function skill<TInput = unknown, TOutput = unknown>(
         maxIterations: 1,
       });
 
-      const result = await runner.prompt<TOutput>(userPrompt);
+      enterSkillContext();
+      const result = await runner.prompt<TOutput>(userPrompt).finally(() => exitSkillContext());
 
       // Skills are single-shot and have no tools, so interrupted responses cannot occur.
       if ('interrupted' in result) {
         throw new Error('Skill received an unexpected interrupted response.');
       }
 
+      log.skillDone(result.structured, result.usage);
       return {
         text: result.text,
         structured: result.structured,
@@ -109,10 +116,7 @@ const store = new Map<string, SkillConfig<unknown>>();
 /**
  * Register a skill by name so it can be retrieved anywhere with `getSkill()`.
  */
-export function registerSkill<TInput = unknown>(
-  name: string,
-  config: SkillConfig<TInput>,
-): void {
+export function registerSkill<TInput = unknown>(name: string, config: SkillConfig<TInput>): void {
   store.set(name, config as SkillConfig<unknown>);
 }
 
@@ -146,17 +150,17 @@ export function clearSkills(): void {
 function skillConfigFromContent(content: string): { name: string; config: SkillConfig<unknown> } {
   const { data, content: body } = matter(content);
 
-  const name = data['name'] as string | undefined;
+  const name = data.name as string | undefined;
   if (!name) throw new Error('Skill markdown must have a "name" field in frontmatter.');
 
   const inputSchema =
-    data['input'] && typeof data['input'] === 'object'
-      ? yamlSchemaToJsonSchema(data['input'] as Record<string, unknown>)
+    data.input && typeof data.input === 'object'
+      ? yamlSchemaToJsonSchema(data.input as Record<string, unknown>)
       : undefined;
 
   const outputSchema =
-    data['output'] && typeof data['output'] === 'object'
-      ? yamlSchemaToJsonSchema(data['output'] as Record<string, unknown>)
+    data.output && typeof data.output === 'object'
+      ? yamlSchemaToJsonSchema(data.output as Record<string, unknown>)
       : undefined;
 
   return {
@@ -165,9 +169,9 @@ function skillConfigFromContent(content: string): { name: string; config: SkillC
       instructions: body.trim(),
       ...(inputSchema ? { input: inputSchema } : {}),
       ...(outputSchema ? { output: outputSchema } : {}),
-      ...(data['model'] ? { model: data['model'] as string } : {}),
-      ...(data['temperature'] !== undefined ? { temperature: data['temperature'] as number } : {}),
-      ...(data['maxTokens'] ? { maxTokens: data['maxTokens'] as number } : {}),
+      ...(data.model ? { model: data.model as string } : {}),
+      ...(data.temperature !== undefined ? { temperature: data.temperature as number } : {}),
+      ...(data.maxTokens ? { maxTokens: data.maxTokens as number } : {}),
     },
   };
 }

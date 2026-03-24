@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { vercelAI } from './vercel.js';
 
 // ─── Mock Vercel AI SDK ────────────────────────────────────────────────────────
@@ -75,7 +75,13 @@ describe('vercelAI — chat()', () => {
     await provider.chat({
       ...BASE_REQUEST,
       systemPrompt: 'Be helpful',
-      tools: [{ name: 'calc', description: 'Adds numbers', inputSchema: { type: 'object', properties: {}, required: [] } }],
+      tools: [
+        {
+          name: 'calc',
+          description: 'Adds numbers',
+          inputSchema: { type: 'object', properties: {}, required: [] },
+        },
+      ],
     });
 
     expect(mockGenerateText).toHaveBeenCalledWith(
@@ -100,12 +106,21 @@ describe('vercelAI — chat()', () => {
       model: 'x',
       messages: [
         { role: 'user', content: 'use tool' },
-        { role: 'assistant', content: [{ type: 'tool_use', id: 'tc-1', name: 'my_tool', input: {} }] },
-        { role: 'user', content: [{ type: 'tool_result', toolUseId: 'tc-1', content: 'result text' }] },
+        {
+          role: 'assistant',
+          content: [{ type: 'tool_use', id: 'tc-1', name: 'my_tool', input: {} }],
+        },
+        {
+          role: 'user',
+          content: [{ type: 'tool_result', toolUseId: 'tc-1', content: 'result text' }],
+        },
       ],
     });
 
-    const passedMessages = mockGenerateText.mock.calls[0]?.[0]?.messages as Array<{ role: string; content: Array<{ toolName: string }> }>;
+    const passedMessages = mockGenerateText.mock.calls[0]?.[0]?.messages as Array<{
+      role: string;
+      content: Array<{ toolName: string }>;
+    }>;
     const toolMsg = passedMessages.find((m) => m.role === 'tool');
     expect(toolMsg).toBeDefined();
     expect(toolMsg?.content[0]?.toolName).toBe('my_tool');
@@ -147,7 +162,11 @@ describe('vercelAI — stream()', () => {
         { type: 'tool-input-delta', id: 'tc-1', delta: '{"a":' },
         { type: 'tool-input-delta', id: 'tc-1', delta: '1}' },
         { type: 'tool-input-end', id: 'tc-1' },
-        { type: 'finish-step', finishReason: 'tool-calls', usage: { inputTokens: 10, outputTokens: 5 } },
+        {
+          type: 'finish-step',
+          finishReason: 'tool-calls',
+          usage: { inputTokens: 10, outputTokens: 5 },
+        },
       ]),
     });
 
@@ -156,7 +175,11 @@ describe('vercelAI — stream()', () => {
     for await (const chunk of provider.stream(BASE_REQUEST)) chunks.push(chunk);
 
     expect(chunks[0]).toEqual({ type: 'tool_use_start', toolUseId: 'tc-1', toolName: 'calc' });
-    expect(chunks[1]).toEqual({ type: 'tool_use_delta', toolUseId: 'tc-1', toolInputDelta: '{"a":' });
+    expect(chunks[1]).toEqual({
+      type: 'tool_use_delta',
+      toolUseId: 'tc-1',
+      toolInputDelta: '{"a":',
+    });
     expect(chunks[2]).toEqual({ type: 'tool_use_delta', toolUseId: 'tc-1', toolInputDelta: '1}' });
     expect(chunks[3]).toEqual({ type: 'tool_use_end', toolUseId: 'tc-1' });
   });
@@ -167,7 +190,11 @@ describe('vercelAI — stream()', () => {
         { type: 'tool-input-start', id: 'tc-1', toolName: 'calc' },
         { type: 'tool-input-end', id: 'tc-1' },
         { type: 'tool-call', toolCallId: 'tc-1', toolName: 'calc', input: { a: 1 } },
-        { type: 'finish-step', finishReason: 'tool-calls', usage: { inputTokens: 5, outputTokens: 2 } },
+        {
+          type: 'finish-step',
+          finishReason: 'tool-calls',
+          usage: { inputTokens: 5, outputTokens: 2 },
+        },
       ]),
     });
 
