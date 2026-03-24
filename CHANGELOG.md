@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.13](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.12...ai-sdk-v0.1.13) (2026-03-24)
+
+
+### Features
+
+* retry & fallback — withRetry(), withFallback(), isRetriableError() ([c97e26c](https://github.com/daedalus-ai-dev/ai-sdk/commit/c97e26ce982dc09011f10ee858641e2927dfdc68))
+* retry & fallback — withRetry(), withFallback(), isRetriableError() ([d48182e](https://github.com/daedalus-ai-dev/ai-sdk/commit/d48182efcf468f14062dd4c19fb849655f282ecc))
+* testing utilities — mockProvider(), mockTool(), toolUseResponse() ([9d59b4a](https://github.com/daedalus-ai-dev/ai-sdk/commit/9d59b4a6fcd03e34d2e73e2b62ed3390dac963ba))
+* testing utilities — mockProvider(), mockTool(), toolUseResponse() ([16b79eb](https://github.com/daedalus-ai-dev/ai-sdk/commit/16b79eb1288f9da3a32dcd103a7e747d7e6dd1ca))
+* token budget, workflow branching, and workflow checkpointing ([dcefee0](https://github.com/daedalus-ai-dev/ai-sdk/commit/dcefee0c28ec04813b9e84d99dd7491a2836350e))
+* token budget, workflow branching, and workflow checkpointing ([f6ff25b](https://github.com/daedalus-ai-dev/ai-sdk/commit/f6ff25b2616327a8e56a10358ecff32f73362586))
+
+
+### Documentation
+
+* add blog review workflow example for workflow() primitive ([d384486](https://github.com/daedalus-ai-dev/ai-sdk/commit/d384486ef194206190d306eb4a85c495eada9b11))
+* add TDD code generator and BDD three-amigos examples ([4c19898](https://github.com/daedalus-ai-dev/ai-sdk/commit/4c19898dd4aef3fc9e6b3f3a58ec1f29a6b29e78))
+
 ## [0.1.12](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.11...ai-sdk-v0.1.12) (2026-03-24)
 
 
