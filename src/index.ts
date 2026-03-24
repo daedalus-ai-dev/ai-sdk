@@ -111,6 +111,11 @@ export type { AgentToolOptions } from './registry.js';
 export { connectMcp, McpConnection } from './mcp/index.js';
 export type { McpServerConfig, McpStdioConfig, McpHttpConfig } from './mcp/index.js';
 
+// ─── Skills ───────────────────────────────────────────────────────────────────
+export { skill, registerSkill, getSkill, hasSkill, listSkills, clearSkills } from './skill.js';
+export { parseSkill, loadSkill, loadSkillsFrom } from './skill.js';
+export type { SkillConfig, SkillRunner, SkillResult } from './skill.js';
+
 // ─── Markdown loaders ─────────────────────────────────────────────────────────
 export { parseAgent, loadAgent, loadAgentsFrom, yamlSchemaToJsonSchema } from './loader.js';
 export type { LoadAgentOptions } from './loader.js';

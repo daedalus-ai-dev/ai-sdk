@@ -92,6 +92,7 @@ export default defineConfig({
             { text: 'Checkpointing', link: '/api/checkpoint' },
             { text: 'Markdown Loader', link: '/api/loader' },
             { text: 'Partials', link: '/api/partial' },
+            { text: 'Skills', link: '/api/skill' },
           ],
         },
         {
