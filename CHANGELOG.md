@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.10](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.9...ai-sdk-v0.1.10) (2026-03-24)
+
+
+### Features
+
+* markdown-based agent and skill definitions ([b250635](https://github.com/daedalus-ai-dev/ai-sdk/commit/b2506357eace7669812c0d2a4351098df438a188))
+* markdown-based agent and skill definitions ([e73458e](https://github.com/daedalus-ai-dev/ai-sdk/commit/e73458e266890bab5f3bda0e80a5c49dc57a98f7))
+
+
+### Documentation
+
+* add markdown agents & skills guide, API reference, and example ([c7f186d](https://github.com/daedalus-ai-dev/ai-sdk/commit/c7f186da30cef8d0a2ca88ded89b6092bc64dd52))
+
 ## [0.1.9](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.8...ai-sdk-v0.1.9) (2026-03-23)
 
 
