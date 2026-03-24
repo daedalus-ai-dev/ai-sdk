@@ -111,6 +111,10 @@ export type { AgentToolOptions } from './registry.js';
 export { connectMcp, McpConnection } from './mcp/index.js';
 export type { McpServerConfig, McpStdioConfig, McpHttpConfig } from './mcp/index.js';
 
+// ─── Refine ───────────────────────────────────────────────────────────────────
+export { refine, RefineLimitError } from './refine.js';
+export type { RefineConfig, RefineResult } from './refine.js';
+
 // ─── Workflow ─────────────────────────────────────────────────────────────────
 export { workflow, fromSkill, parseWorkflow, loadWorkflow, WorkflowBuilder } from './workflow.js';
 export type {

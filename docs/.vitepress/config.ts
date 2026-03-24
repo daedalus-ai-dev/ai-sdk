@@ -90,6 +90,7 @@ export default defineConfig({
             { text: 'Prompt Templates', link: '/api/prompt-templates' },
             { text: 'Context Window', link: '/api/context-manager' },
             { text: 'Workflow', link: '/api/workflow' },
+            { text: 'refine()', link: '/api/refine' },
             { text: 'Checkpointing', link: '/api/checkpoint' },
             { text: 'Markdown Loader', link: '/api/loader' },
             { text: 'Partials', link: '/api/partial' },
