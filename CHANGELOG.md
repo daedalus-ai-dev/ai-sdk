@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.1.11](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.10...ai-sdk-v0.1.11) (2026-03-24)
+
+
+### Features
+
+* refine() — iterative evaluator-optimizer loop primitive ([460f25c](https://github.com/daedalus-ai-dev/ai-sdk/commit/460f25ccd4f6c25c91a5fbd2e3ba12561b779e67))
+* skill() — typed single-shot AI functions ([7086d24](https://github.com/daedalus-ai-dev/ai-sdk/commit/7086d24e76e4e30d4b09caa7afc9296522fef15e))
+* workflow() — typed multi-stage pipeline with parallel branches ([7ca3a66](https://github.com/daedalus-ai-dev/ai-sdk/commit/7ca3a66ae141f04c35e09bb678ebb8f6cead99be))
+
+
+### Bug Fixes
+
+* **docs:** escape {{skill:name}} placeholders to prevent Vue template parsing ([ca5c9f7](https://github.com/daedalus-ai-dev/ai-sdk/commit/ca5c9f7ce562f953024ee8dde12dc3fdfda966ab))
+* **docs:** escape {{skill:name}} placeholders to prevent Vue template… ([0e5d412](https://github.com/daedalus-ai-dev/ai-sdk/commit/0e5d4125c1fee08447d3735d541fc9f3b6edfb0a))
+
+
+### Documentation
+
+* add markdown research pipeline to examples index ([e8cabd6](https://github.com/daedalus-ai-dev/ai-sdk/commit/e8cabd64ccc981b79b1f014be88054dde7a83faa))
+* add markdown research pipeline to examples index ([c6f28b1](https://github.com/daedalus-ai-dev/ai-sdk/commit/c6f28b1ed6d3f3fb02a84afae4042f286cfa5566))
+* add tutorial guide for building a blog review pipeline with Claude ([a714f0e](https://github.com/daedalus-ai-dev/ai-sdk/commit/a714f0ede6020928e8ca1efd2bb28205cca22213))
+* add tutorial guide for building a blog review pipeline with Claude ([8ebe987](https://github.com/daedalus-ai-dev/ai-sdk/commit/8ebe987093c6c48ca88e69ae566dacc8df1cf26a))
+
 ## [0.1.10](https://github.com/daedalus-ai-dev/ai-sdk/compare/ai-sdk-v0.1.9...ai-sdk-v0.1.10) (2026-03-24)
 
 
