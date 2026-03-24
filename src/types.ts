@@ -223,8 +223,8 @@ export interface ZodLike {
   safeParse(data: unknown): { success: boolean; data?: unknown; error?: unknown };
 }
 
-/** Accepted wherever a schema can be provided — fluent builder or a Zod schema. */
-export type SchemaInput = SchemaFn | ZodLike;
+/** Accepted wherever a schema can be provided — fluent builder, a Zod schema, or a raw JSON Schema object. */
+export type SchemaInput = SchemaFn | ZodLike | JsonSchemaObject;
 
 // Property builder — fluent API that emits a JsonSchemaProperty
 export abstract class PropertyBuilder {

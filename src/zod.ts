@@ -1,6 +1,17 @@
 import { createRequire } from 'node:module';
 import type { ZodLike, JsonSchemaObject } from './types.js';
 
+// ─── Raw JSON Schema detection ────────────────────────────────────────────────
+
+export function isRawJsonSchema(value: unknown): value is JsonSchemaObject {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as Record<string, unknown>)['type'] === 'object' &&
+    'properties' in value
+  );
+}
+
 // ─── Detection ────────────────────────────────────────────────────────────────
 
 export function isZodSchema(value: unknown): value is ZodLike {
