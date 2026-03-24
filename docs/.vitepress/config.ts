@@ -75,6 +75,7 @@ export default defineConfig({
             { text: 'Markdown Research Pipeline', link: '/examples/markdown-research-pipeline' },
             { text: 'TDD Code Generator', link: '/examples/tdd-code-generator' },
             { text: 'BDD Three Amigos', link: '/examples/bdd-three-amigos' },
+            { text: 'Blog Review Workflow', link: '/examples/blog-review-workflow' },
           ],
         },
       ],
