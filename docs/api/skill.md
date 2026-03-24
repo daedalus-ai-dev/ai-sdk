@@ -1,6 +1,6 @@
 # Skills
 
-A skill is a named, reusable instruction fragment. Skills are stored in a global registry and can be embedded into any agent's system prompt using the `{{skill:name}}` placeholder.
+A skill is a named, reusable instruction fragment. Skills are stored in a global registry and can be embedded into any agent's system prompt using the <code v-pre>{{skill:name}}</code> placeholder.
 
 ## Functions
 
@@ -96,7 +96,7 @@ Always cite at least one source per factual claim.
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `name` | Yes | Registry key. Used in `{{skill:name}}` placeholders. |
+| `name` | Yes | Registry key. Used in <code v-pre>{{skill:name}}</code> placeholders. |
 | `description` | No | Human-readable description of the skill's purpose. |
 | Body | Yes | The instruction text injected at the placeholder site. |
 

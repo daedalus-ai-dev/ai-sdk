@@ -67,7 +67,7 @@ You are a professional writer. Turn research notes into polished prose.
 {{skill:tone}}
 ```
 
-The `{{skill:name}}` placeholder is replaced with the skill's instruction text at load time.
+The <code v-pre>{{skill:name}}</code> placeholder is replaced with the skill's instruction text at load time.
 
 ## Loading in code
 
