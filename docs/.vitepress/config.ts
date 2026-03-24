@@ -98,6 +98,7 @@ export default defineConfig({
             { text: 'Markdown Loader', link: '/api/loader' },
             { text: 'Partials', link: '/api/partial' },
             { text: 'Skills', link: '/api/skill' },
+            { text: 'Resilience', link: '/api/resilience' },
             { text: 'Testing', link: '/api/testing' },
           ],
         },
