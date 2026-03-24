@@ -11,10 +11,14 @@ export interface WorkflowStep<TIn, TOut> {
 }
 
 export interface StageResult {
-  type: 'parallel' | 'serial';
-  /** Step name for serial stages. Undefined for parallel stages. */
+  type: 'parallel' | 'serial' | 'branch';
+  /** Step name for serial/branch stages. Undefined for parallel stages. */
   name?: string;
+  /** For branch stages: the key that was selected. */
+  selectedCase?: string;
   durationMs: number;
+  /** `true` when the stage output was restored from a checkpoint store. */
+  resumed?: boolean;
 }
 
 export interface WorkflowResult<TOut> {
@@ -22,14 +26,53 @@ export interface WorkflowResult<TOut> {
   stages: StageResult[];
 }
 
+// ─── Checkpoint store ─────────────────────────────────────────────────────────
+
+/**
+ * Persistence interface for workflow stage outputs.
+ * Pass to `runner.run(input, { checkpointStore })` to enable resume-on-failure.
+ */
+export interface WorkflowCheckpointStore {
+  get(stageIndex: number): Promise<unknown | undefined>;
+  set(stageIndex: number, output: unknown): Promise<void>;
+}
+
+/**
+ * Create a simple in-memory checkpoint store.
+ *
+ * Suitable for resuming a workflow within the same process. For cross-process
+ * or cross-restart resumption, provide a persistent store backed by a database
+ * or file system.
+ */
+export function inMemoryCheckpointStore(): WorkflowCheckpointStore {
+  const map = new Map<number, unknown>();
+  return {
+    async get(i) {
+      return map.get(i);
+    },
+    async set(i, v) {
+      map.set(i, v);
+    },
+  };
+}
+
+export interface WorkflowRunOptions {
+  /**
+   * Checkpoint store to use for this run.
+   * Stages whose outputs are already stored will be skipped (`resumed: true`).
+   * On successful completion of each stage, the output is saved.
+   */
+  checkpointStore?: WorkflowCheckpointStore;
+}
+
 export interface WorkflowRunner<TIn = unknown, TOut = unknown> {
-  run(input: TIn): Promise<WorkflowResult<TOut>>;
+  run(input: TIn, options?: WorkflowRunOptions): Promise<WorkflowResult<TOut>>;
 }
 
 // ─── Internal stage representation ────────────────────────────────────────────
 
 // biome-ignore lint/suspicious/noExplicitAny: third-party type boundary
-type AnyStage = ParallelStage<any, any, any> | SerialStage<any, any>;
+type AnyStage = ParallelStage<any, any, any> | SerialStage<any, any> | BranchStage<any, any>;
 
 interface ParallelStage<TIn, TStepOut, TOut> {
   kind: 'parallel';
@@ -42,13 +85,21 @@ interface SerialStage<TIn, TOut> {
   step: WorkflowStep<TIn, TOut>;
 }
 
+interface BranchStage<TIn, TOut> {
+  kind: 'branch';
+  name: string;
+  select: (input: TIn) => string;
+  cases: Record<string, WorkflowStep<TIn, TOut>>;
+  default?: WorkflowStep<TIn, TOut>;
+}
+
 // ─── Builder ──────────────────────────────────────────────────────────────────
 
 /**
  * Fluent builder for typed, multi-stage workflows.
  *
- * Each `.parallel()` or `.step()` call appends a stage and shifts the
- * current output type, so the chain is fully type-safe end-to-end.
+ * Each `.parallel()`, `.step()`, or `.branch()` call appends a stage and
+ * shifts the current output type, so the chain is fully type-safe end-to-end.
  */
 export class WorkflowBuilder<TInitial, TCurrent> {
   private constructor(private readonly _stages: AnyStage[]) {}
@@ -86,33 +137,122 @@ export class WorkflowBuilder<TInitial, TCurrent> {
     return new WorkflowBuilder<TInitial, TOut>([...this._stages, { kind: 'serial', step }]);
   }
 
+  /**
+   * Add a branch (routing) stage.
+   *
+   * `select` extracts a string key from the current output. The matching entry
+   * in `cases` is executed. If no case matches and `default` is provided, it is
+   * used; otherwise an error is thrown.
+   *
+   * All cases must return the same type `TOut`.
+   *
+   * ```ts
+   * workflow<Request>()
+   *   .step({ name: 'classify', run: classify })
+   *   .branch({
+   *     name: 'route',
+   *     select: (r) => r.category,
+   *     cases: {
+   *       technical: fromSkill('tech', techSkill),
+   *       billing:   fromSkill('billing', billingSkill),
+   *     },
+   *     default: fromSkill('general', generalSkill),
+   *   })
+   *   .build();
+   * ```
+   */
+  branch<TOut>(config: {
+    name: string;
+    select: (input: TCurrent) => string;
+    cases: Record<string, WorkflowStep<TCurrent, TOut>>;
+    default?: WorkflowStep<TCurrent, TOut>;
+  }): WorkflowBuilder<TInitial, TOut> {
+    return new WorkflowBuilder<TInitial, TOut>([
+      ...this._stages,
+      {
+        kind: 'branch',
+        name: config.name,
+        select: config.select,
+        cases: config.cases,
+        default: config.default,
+      },
+    ]);
+  }
+
   /** Compile the builder into an executable runner. */
   build(): WorkflowRunner<TInitial, TCurrent> {
     const stages = [...this._stages];
     return {
-      async run(input: TInitial): Promise<WorkflowResult<TCurrent>> {
+      async run(input: TInitial, options?: WorkflowRunOptions): Promise<WorkflowResult<TCurrent>> {
         let current: unknown = input;
         const stageResults: StageResult[] = [];
+        const store = options?.checkpointStore;
 
-        for (const stage of stages) {
+        for (let i = 0; i < stages.length; i++) {
+          // ── Checkpoint resume ────────────────────────────────────────────────
+          if (store) {
+            const saved = await store.get(i);
+            if (saved !== undefined) {
+              current = saved;
+              const stage = stages[i];
+              // biome-ignore lint/style/noNonNullAssertion: i is within bounds
+              const name =
+                stage!.kind === 'serial'
+                  ? stage!.step.name
+                  : stage!.kind === 'branch'
+                    ? stage!.name
+                    : undefined;
+              // biome-ignore lint/style/noNonNullAssertion: i is within bounds
+              stageResults.push({ type: stage!.kind, name, durationMs: 0, resumed: true });
+              continue;
+            }
+          }
+
+          const stage = stages[i];
+          // biome-ignore lint/style/noNonNullAssertion: i is within bounds
+          const s = stage!;
           const start = Date.now();
 
-          if (stage.kind === 'parallel') {
-            const stepNames = stage.steps.map((s: WorkflowStep<unknown, unknown>) => s.name);
+          if (s.kind === 'parallel') {
+            const stepNames = s.steps.map((st: WorkflowStep<unknown, unknown>) => st.name);
             log.workflowStageStart('parallel', stepNames);
             const results = await Promise.all(
-              stage.steps.map((s: WorkflowStep<unknown, unknown>) => s.run(current)),
+              s.steps.map((st: WorkflowStep<unknown, unknown>) => st.run(current)),
             );
-            current = await stage.accumulate(results);
+            current = await s.accumulate(results);
             const elapsed = Date.now() - start;
             stageResults.push({ type: 'parallel', durationMs: elapsed });
             log.workflowStageDone(elapsed);
-          } else {
-            log.workflowStageStart('serial', [stage.step.name]);
-            current = await stage.step.run(current);
+          } else if (s.kind === 'serial') {
+            log.workflowStageStart('serial', [s.step.name]);
+            current = await s.step.run(current);
             const elapsed = Date.now() - start;
-            stageResults.push({ type: 'serial', name: stage.step.name, durationMs: elapsed });
+            stageResults.push({ type: 'serial', name: s.step.name, durationMs: elapsed });
             log.workflowStageDone(elapsed);
+          } else {
+            // branch
+            const key = s.select(current);
+            const handler = s.cases[key] ?? s.default;
+            if (!handler) {
+              throw new Error(
+                `Workflow branch "${s.name}": no case for key "${key}" and no default defined.`,
+              );
+            }
+            log.workflowStageStart('branch', [s.name, key]);
+            current = await handler.run(current);
+            const elapsed = Date.now() - start;
+            stageResults.push({
+              type: 'branch',
+              name: s.name,
+              selectedCase: key,
+              durationMs: elapsed,
+            });
+            log.workflowStageDone(elapsed);
+          }
+
+          // ── Checkpoint save ──────────────────────────────────────────────────
+          if (store) {
+            await store.set(i, current);
           }
         }
 
@@ -128,7 +268,7 @@ export class WorkflowBuilder<TInitial, TCurrent> {
 // ─── Factory ──────────────────────────────────────────────────────────────────
 
 /**
- * Create a typed, multi-stage workflow with parallel and serial stages.
+ * Create a typed, multi-stage workflow with parallel, serial, and branch stages.
  *
  * @example
  * const pipeline = workflow<Post>()

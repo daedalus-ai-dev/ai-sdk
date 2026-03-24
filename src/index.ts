@@ -1,3 +1,6 @@
+// ─── Token budget ─────────────────────────────────────────────────────────────
+export type { TokenBudgetOptions } from './budget.js';
+export { TokenBudgetExceededError, withTokenBudget } from './budget.js';
 // ─── Core ─────────────────────────────────────────────────────────────────────
 
 export type { AgentConfig, AgentInterface } from './agent.js';
@@ -129,11 +132,20 @@ export {
 } from './types.js';
 export type {
   StageResult,
+  WorkflowCheckpointStore,
   WorkflowRegistry,
   WorkflowResult,
   WorkflowRunner,
+  WorkflowRunOptions,
   WorkflowStep,
 } from './workflow.js';
 // ─── Workflow ─────────────────────────────────────────────────────────────────
-export { fromSkill, loadWorkflow, parseWorkflow, WorkflowBuilder, workflow } from './workflow.js';
+export {
+  fromSkill,
+  inMemoryCheckpointStore,
+  loadWorkflow,
+  parseWorkflow,
+  WorkflowBuilder,
+  workflow,
+} from './workflow.js';
 export { isRawJsonSchema, isZodSchema } from './zod.js';

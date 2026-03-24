@@ -148,12 +148,19 @@ export function skillDone(structured: unknown, usage: Usage): void {
 
 // ─── Workflow ─────────────────────────────────────────────────────────────────
 
-export function workflowStageStart(type: 'parallel' | 'serial', stepNames: string[]): void {
+export function workflowStageStart(
+  type: 'parallel' | 'serial' | 'branch',
+  stepNames: string[],
+): void {
   if (!_debug) return;
-  const label =
-    type === 'parallel'
-      ? `${CY}parallel${R}  ${d}[${stepNames.join(', ')}]${R}`
-      : `${CY}serial${R}  ${d}${stepNames[0] ?? ''}${R}`;
+  let label: string;
+  if (type === 'parallel') {
+    label = `${CY}parallel${R}  ${d}[${stepNames.join(', ')}]${R}`;
+  } else if (type === 'branch') {
+    label = `${CY}branch${R}  ${d}${stepNames[0] ?? ''}${R}  ${YE}→ ${stepNames[1] ?? ''}${R}`;
+  } else {
+    label = `${CY}serial${R}  ${d}${stepNames[0] ?? ''}${R}`;
+  }
   out(`${BL}${b}▸ workflow${R}  ${label}`);
 }
 

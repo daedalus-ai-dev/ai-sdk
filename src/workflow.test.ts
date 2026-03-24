@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fromSkill, parseWorkflow, type WorkflowStep, workflow } from './workflow.js';
+import {
+  fromSkill,
+  inMemoryCheckpointStore,
+  parseWorkflow,
+  type WorkflowStep,
+  workflow,
+} from './workflow.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -251,5 +257,177 @@ stages:
     expect(() =>
       parseWorkflow(`---\nname: bad\nstages:\n  - step: missing-step\n---`, registry),
     ).toThrow('"missing-step"');
+  });
+});
+
+// ─── .branch() ────────────────────────────────────────────────────────────────
+
+describe('.branch()', () => {
+  it('routes to the matching case', async () => {
+    const runner = workflow<{ type: string; value: number }>()
+      .branch({
+        name: 'router',
+        select: (input) => input.type,
+        cases: {
+          double: makeStep('double', (i: { value: number }) => i.value * 2),
+          triple: makeStep('triple', (i: { value: number }) => i.value * 3),
+        },
+      })
+      .build();
+
+    expect((await runner.run({ type: 'double', value: 5 })).output).toBe(10);
+    expect((await runner.run({ type: 'triple', value: 5 })).output).toBe(15);
+  });
+
+  it('uses the default when no case matches', async () => {
+    const runner = workflow<string>()
+      .branch({
+        name: 'router',
+        select: (s) => s,
+        cases: { known: makeStep('known', () => 'known result') },
+        default: makeStep('default', () => 'default result'),
+      })
+      .build();
+
+    expect((await runner.run('unknown')).output).toBe('default result');
+  });
+
+  it('throws when no case matches and no default', async () => {
+    const runner = workflow<string>()
+      .branch({
+        name: 'router',
+        select: (s) => s,
+        cases: { known: makeStep('known', () => 'result') },
+      })
+      .build();
+
+    await expect(runner.run('unknown')).rejects.toThrow('no case for key "unknown"');
+  });
+
+  it('records branch stage result with selectedCase', async () => {
+    const runner = workflow<string>()
+      .branch({
+        name: 'router',
+        select: (s) => s,
+        cases: { a: makeStep('a', () => 'A') },
+      })
+      .build();
+
+    const { stages } = await runner.run('a');
+    expect(stages[0]).toMatchObject({ type: 'branch', name: 'router', selectedCase: 'a' });
+  });
+
+  it('chains after a serial step', async () => {
+    const runner = workflow<number>()
+      .step(makeStep('stringify', (n: number) => (n > 0 ? 'positive' : 'negative')))
+      .branch({
+        name: 'sign',
+        select: (s) => s,
+        cases: {
+          positive: makeStep('pos', () => 1),
+          negative: makeStep('neg', () => -1),
+        },
+      })
+      .build();
+
+    expect((await runner.run(42)).output).toBe(1);
+    expect((await runner.run(-7)).output).toBe(-1);
+  });
+});
+
+// ─── Checkpoint store ─────────────────────────────────────────────────────────
+
+describe('inMemoryCheckpointStore()', () => {
+  it('stores and retrieves values by stage index', async () => {
+    const store = inMemoryCheckpointStore();
+    await store.set(0, 'hello');
+    expect(await store.get(0)).toBe('hello');
+    expect(await store.get(1)).toBeUndefined();
+  });
+});
+
+describe('workflow checkpointing', () => {
+  it('skips completed stages when resuming', async () => {
+    let step1Calls = 0;
+    let step2Calls = 0;
+
+    const runner = workflow<number>()
+      .step(
+        makeStep('step1', (n: number) => {
+          step1Calls++;
+          return n * 2;
+        }),
+      )
+      .step(
+        makeStep('step2', (n: number) => {
+          step2Calls++;
+          return n + 1;
+        }),
+      )
+      .build();
+
+    const store = inMemoryCheckpointStore();
+
+    // First run — both steps execute
+    const result1 = await runner.run(5, { checkpointStore: store });
+    expect(result1.output).toBe(11); // 5*2=10, 10+1=11
+    expect(step1Calls).toBe(1);
+    expect(step2Calls).toBe(1);
+
+    // Second run — both stages are checkpointed, nothing re-executes
+    const result2 = await runner.run(5, { checkpointStore: store });
+    expect(result2.output).toBe(11);
+    expect(step1Calls).toBe(1); // not called again
+    expect(step2Calls).toBe(1); // not called again
+    expect(result2.stages[0]?.resumed).toBe(true);
+    expect(result2.stages[1]?.resumed).toBe(true);
+  });
+
+  it('resumes from the last successful stage after partial failure', async () => {
+    let step1Calls = 0;
+    let step2Calls = 0;
+    let shouldFail = true;
+
+    const runner = workflow<number>()
+      .step(
+        makeStep('step1', (n: number) => {
+          step1Calls++;
+          return n * 2;
+        }),
+      )
+      .step(
+        makeStep('step2', (n: number) => {
+          step2Calls++;
+          if (shouldFail) throw new Error('transient error');
+          return n + 1;
+        }),
+      )
+      .build();
+
+    const store = inMemoryCheckpointStore();
+
+    // First attempt — step1 succeeds, step2 fails
+    await expect(runner.run(5, { checkpointStore: store })).rejects.toThrow('transient error');
+    expect(step1Calls).toBe(1);
+    expect(step2Calls).toBe(1);
+
+    // Second attempt — step1 is resumed from checkpoint, step2 retried
+    shouldFail = false;
+    const result = await runner.run(5, { checkpointStore: store });
+    expect(result.output).toBe(11);
+    expect(step1Calls).toBe(1); // not re-run
+    expect(step2Calls).toBe(2); // retried
+    expect(result.stages[0]?.resumed).toBe(true);
+    expect(result.stages[1]?.resumed).toBeUndefined();
+  });
+
+  it('works without a checkpoint store (normal run)', async () => {
+    const runner = workflow<number>()
+      .step(makeStep('double', (n: number) => n * 2))
+      .build();
+
+    const result = await runner.run(7);
+    expect(result.output).toBe(14);
+    expect(result.stages[0]?.resumed).toBeUndefined();
   });
 });
