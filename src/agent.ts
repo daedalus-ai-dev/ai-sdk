@@ -1,24 +1,24 @@
-import type {
-  AIProvider,
-  Message,
-  MessageContent,
-  AgentResponse,
-  InterruptedResponse,
-  StreamedAgentResponse,
-  Usage,
-  SchemaInput,
-  SchemaFn,
-  JsonSchemaObject,
-  ChatRequest,
-} from './types.js';
+import { InterruptError } from './checkpoint.js';
+import type { ContextManager } from './context-manager.js';
+import * as log from './logger.js';
+import { buildSchema } from './schema.js';
 import type { Tool } from './tool.js';
 import { toolToDefinition } from './tool.js';
-import { buildSchema } from './schema.js';
-import { isZodSchema, zodToJsonSchema, isRawJsonSchema } from './zod.js';
-import type { ContextManager } from './context-manager.js';
-import type { Checkpoint } from './types.js';
-import { InterruptError } from './checkpoint.js';
-import * as log from './logger.js';
+import type {
+  AgentResponse,
+  AIProvider,
+  ChatRequest,
+  Checkpoint,
+  InterruptedResponse,
+  JsonSchemaObject,
+  Message,
+  MessageContent,
+  SchemaFn,
+  SchemaInput,
+  StreamedAgentResponse,
+  Usage,
+} from './types.js';
+import { isRawJsonSchema, isZodSchema, zodToJsonSchema } from './zod.js';
 
 // ─── Agent interface (for class-based agents) ─────────────────────────────────
 
@@ -49,7 +49,11 @@ export interface AgentConfig {
 let defaultProvider: AIProvider | null = null;
 let defaultModel: string = 'openai/gpt-4o-mini';
 
-export function configure(options: { provider?: AIProvider; model?: string; debug?: boolean }): void {
+export function configure(options: {
+  provider?: AIProvider;
+  model?: string;
+  debug?: boolean;
+}): void {
   if (options.provider) defaultProvider = options.provider;
   if (options.model) defaultModel = options.model;
   if (options.debug !== undefined) log.setDebug(options.debug);
@@ -94,10 +98,7 @@ class AgentRunner {
     history: Message[] = [],
   ): Promise<AgentResponse<T> | InterruptedResponse> {
     log.agentPrompt(input);
-    const messages: Message[] = [
-      ...history,
-      { role: 'user', content: input },
-    ];
+    const messages: Message[] = [...history, { role: 'user', content: input }];
     return this.runLoop<T>(messages, 0, { inputTokens: 0, outputTokens: 0 });
   }
 
@@ -157,9 +158,10 @@ class AgentRunner {
         messages: contextMessages,
         systemPrompt: this.instructions,
         tools: toolDefs.length > 0 ? toolDefs : undefined,
-        responseFormat: responseSchema && !toolDefs.length
-          ? { type: 'json_schema', schema: responseSchema, name: 'structured_output' }
-          : undefined,
+        responseFormat:
+          responseSchema && !toolDefs.length
+            ? { type: 'json_schema', schema: responseSchema, name: 'structured_output' }
+            : undefined,
         temperature: this.temperature,
         maxTokens: this.maxTokens,
       };
@@ -191,7 +193,12 @@ class AgentRunner {
               const errMsg = `Tool "${part.name}" not found.`;
               log.agentToolCall(part.name, part.input);
               log.agentToolResult(errMsg, true);
-              toolResults.push({ type: 'tool_result', toolUseId: part.id, content: errMsg, isError: true });
+              toolResults.push({
+                type: 'tool_result',
+                toolUseId: part.id,
+                content: errMsg,
+                isError: true,
+              });
               return;
             }
 
@@ -208,7 +215,12 @@ class AgentRunner {
               }
               const errMsg = `Tool error: ${err instanceof Error ? err.message : String(err)}`;
               log.agentToolResult(errMsg, true);
-              toolResults.push({ type: 'tool_result', toolUseId: part.id, content: errMsg, isError: true });
+              toolResults.push({
+                type: 'tool_result',
+                toolUseId: part.id,
+                content: errMsg,
+                isError: true,
+              });
             }
           }),
         );
@@ -217,7 +229,12 @@ class AgentRunner {
           return {
             interrupted: true,
             question: (interrupted as InterruptError).question,
-            checkpoint: { messages, iterations, usage: totalUsage, pendingToolUseId: interruptedToolUseId },
+            checkpoint: {
+              messages,
+              iterations,
+              usage: totalUsage,
+              pendingToolUseId: interruptedToolUseId,
+            },
           };
         }
 
@@ -258,12 +275,12 @@ class AgentRunner {
     throw new Error(`Agent exceeded maxIterations (${this.maxIterations})`);
   }
 
-  async *stream(input: string, history: Message[] = []): AsyncGenerator<string, StreamedAgentResponse> {
+  async *stream(
+    input: string,
+    history: Message[] = [],
+  ): AsyncGenerator<string, StreamedAgentResponse> {
     const provider = this.resolveProvider();
-    const messages: Message[] = [
-      ...history,
-      { role: 'user', content: input },
-    ];
+    const messages: Message[] = [...history, { role: 'user', content: input }];
 
     const toolDefs = this.tools.map(toolToDefinition);
     const totalUsage: Usage = { inputTokens: 0, outputTokens: 0 };
@@ -312,7 +329,11 @@ class AgentRunner {
 
           for (const [id, tc] of pendingToolCalls) {
             let input: Record<string, unknown> = {};
-            try { input = JSON.parse(tc.args) as Record<string, unknown>; } catch { /* empty */ }
+            try {
+              input = JSON.parse(tc.args) as Record<string, unknown>;
+            } catch {
+              /* empty */
+            }
             assistantContent.push({ type: 'tool_use', id, name: tc.name, input });
           }
         }
@@ -329,16 +350,30 @@ class AgentRunner {
           [...pendingToolCalls.entries()].map(async ([id, tc]) => {
             const tool = this.tools.find((t) => t.name() === tc.name);
             if (!tool) {
-              toolResults.push({ type: 'tool_result', toolUseId: id, content: `Tool "${tc.name}" not found.`, isError: true });
+              toolResults.push({
+                type: 'tool_result',
+                toolUseId: id,
+                content: `Tool "${tc.name}" not found.`,
+                isError: true,
+              });
               return;
             }
             let input: Record<string, unknown> = {};
-            try { input = JSON.parse(tc.args) as Record<string, unknown>; } catch { /* empty */ }
+            try {
+              input = JSON.parse(tc.args) as Record<string, unknown>;
+            } catch {
+              /* empty */
+            }
             try {
               const result = await tool.handle(input);
               toolResults.push({ type: 'tool_result', toolUseId: id, content: result });
             } catch (err) {
-              toolResults.push({ type: 'tool_result', toolUseId: id, content: `Tool error: ${err instanceof Error ? err.message : String(err)}`, isError: true });
+              toolResults.push({
+                type: 'tool_result',
+                toolUseId: id,
+                content: `Tool error: ${err instanceof Error ? err.message : String(err)}`,
+                isError: true,
+              });
             }
           }),
         );
@@ -366,7 +401,6 @@ function extractText(content: MessageContent[]): string {
     .map((c) => (c.type === 'text' ? c.text : ''))
     .join('');
 }
-
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 

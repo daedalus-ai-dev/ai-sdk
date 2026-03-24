@@ -2,11 +2,11 @@ import type {
   AIProvider,
   ChatRequest,
   ChatResponse,
-  StreamChunk,
   Message,
   MessageContent,
-  ToolDefinition,
   StopReason,
+  StreamChunk,
+  ToolDefinition,
   Usage,
 } from '../types.js';
 
@@ -153,10 +153,14 @@ function toOAITools(tools: ToolDefinition[]): OAITool[] {
 
 function mapFinishReason(reason: string | null): StopReason {
   switch (reason) {
-    case 'tool_calls': return 'tool_use';
-    case 'length': return 'max_tokens';
-    case 'stop': return 'end_turn';
-    default: return 'end_turn';
+    case 'tool_calls':
+      return 'tool_use';
+    case 'length':
+      return 'max_tokens';
+    case 'stop':
+      return 'end_turn';
+    default:
+      return 'end_turn';
   }
 }
 
@@ -225,12 +229,12 @@ export class OpenRouterProvider implements AIProvider {
     };
 
     if (request.tools && request.tools.length > 0) {
-      body['tools'] = toOAITools(request.tools);
-      body['tool_choice'] = 'auto';
+      body.tools = toOAITools(request.tools);
+      body.tool_choice = 'auto';
     }
 
     if (request.responseFormat) {
-      body['response_format'] = {
+      body.response_format = {
         type: 'json_schema',
         json_schema: {
           name: request.responseFormat.name,
@@ -240,8 +244,8 @@ export class OpenRouterProvider implements AIProvider {
       };
     }
 
-    if (request.maxTokens !== undefined) body['max_tokens'] = request.maxTokens;
-    if (request.temperature !== undefined) body['temperature'] = request.temperature;
+    if (request.maxTokens !== undefined) body.max_tokens = request.maxTokens;
+    if (request.temperature !== undefined) body.temperature = request.temperature;
 
     const res = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
@@ -278,12 +282,12 @@ export class OpenRouterProvider implements AIProvider {
     };
 
     if (request.tools && request.tools.length > 0) {
-      body['tools'] = toOAITools(request.tools);
-      body['tool_choice'] = 'auto';
+      body.tools = toOAITools(request.tools);
+      body.tool_choice = 'auto';
     }
 
-    if (request.maxTokens !== undefined) body['max_tokens'] = request.maxTokens;
-    if (request.temperature !== undefined) body['temperature'] = request.temperature;
+    if (request.maxTokens !== undefined) body.max_tokens = request.maxTokens;
+    if (request.temperature !== undefined) body.temperature = request.temperature;
 
     const res = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
@@ -341,15 +345,27 @@ export class OpenRouterProvider implements AIProvider {
           for (const tc of delta.tool_calls) {
             const idx = tc.index;
             if (!toolCallBuffers.has(idx)) {
-              toolCallBuffers.set(idx, { id: tc.id ?? '', name: tc.function?.name ?? '', args: '' });
-              yield { type: 'tool_use_start', toolUseId: tc.id ?? String(idx), toolName: tc.function?.name };
+              toolCallBuffers.set(idx, {
+                id: tc.id ?? '',
+                name: tc.function?.name ?? '',
+                args: '',
+              });
+              yield {
+                type: 'tool_use_start',
+                toolUseId: tc.id ?? String(idx),
+                toolName: tc.function?.name,
+              };
             }
             const buf = toolCallBuffers.get(idx)!;
             if (tc.id) buf.id = tc.id;
             if (tc.function?.name) buf.name = tc.function.name;
             if (tc.function?.arguments) {
               buf.args += tc.function.arguments;
-              yield { type: 'tool_use_delta', toolUseId: buf.id, toolInputDelta: tc.function.arguments };
+              yield {
+                type: 'tool_use_delta',
+                toolUseId: buf.id,
+                toolInputDelta: tc.function.arguments,
+              };
             }
           }
         }
@@ -361,7 +377,10 @@ export class OpenRouterProvider implements AIProvider {
           }
 
           const usage: Usage | undefined = chunk.usage
-            ? { inputTokens: chunk.usage.prompt_tokens, outputTokens: chunk.usage.completion_tokens }
+            ? {
+                inputTokens: chunk.usage.prompt_tokens,
+                outputTokens: chunk.usage.completion_tokens,
+              }
             : undefined;
 
           yield {

@@ -1,4 +1,4 @@
-import type { AgentResponse, InterruptedResponse, Checkpoint } from './types.js';
+import type { AgentResponse, Checkpoint, InterruptedResponse } from './types.js';
 
 // Re-export Checkpoint so callers can import it from either location.
 export type { Checkpoint } from './types.js';

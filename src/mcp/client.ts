@@ -1,9 +1,8 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+// SSEClientTransport is the legacy transport for older MCP servers
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-// SSEClientTransport is the legacy transport for older MCP servers
-// eslint-disable-next-line import/no-deprecated
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { Tool } from '../tool.js';
 import { RAW_INPUT_SCHEMA } from '../tool.js';
 import type { JsonSchemaObject, PropertyBuilder, SchemaBuilder } from '../types.js';
@@ -85,20 +84,26 @@ export async function connectMcp(config: McpServerConfig): Promise<McpConnection
   const client = new Client({ name: 'daedalus-ai-sdk', version: '0.1.0' });
 
   if (config.type === 'stdio') {
-    await client.connect(new StdioClientTransport({
-      command: config.command,
-      args: config.args,
-      env: config.env,
-    }));
+    await client.connect(
+      new StdioClientTransport({
+        command: config.command,
+        args: config.args,
+        env: config.env,
+      }),
+    );
   } else {
     const url = new URL(config.url);
     const headers = config.headers;
     const variant = config.transport ?? 'streamable-http';
 
     if (variant === 'sse') {
-      await client.connect(new SSEClientTransport(url, headers ? { requestInit: { headers } } : {}));
+      await client.connect(
+        new SSEClientTransport(url, headers ? { requestInit: { headers } } : {}),
+      );
     } else {
-      await client.connect(new StreamableHTTPClientTransport(url, headers ? { requestInit: { headers } } : {}));
+      await client.connect(
+        new StreamableHTTPClientTransport(url, headers ? { requestInit: { headers } } : {}),
+      );
     }
   }
 
@@ -117,7 +122,10 @@ export async function connectMcp(config: McpServerConfig): Promise<McpConnection
       async handle(input: Record<string, unknown>): Promise<string> {
         type ContentBlock = { type: string; text?: string };
         type CallResult = { content: ContentBlock[] };
-        const result = await client.callTool({ name: mcpTool.name, arguments: input }) as unknown as CallResult;
+        const result = (await client.callTool({
+          name: mcpTool.name,
+          arguments: input,
+        })) as unknown as CallResult;
 
         const content = result.content;
 

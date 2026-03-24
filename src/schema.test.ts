@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { buildSchema, schema } from './schema.js';
 
 describe('buildSchema', () => {
@@ -28,9 +28,9 @@ describe('buildSchema', () => {
       tags: s.array().items(s.string().toSchema()),
     }));
 
-    expect(result.properties['status']).toEqual({ type: 'string', enum: ['active', 'inactive'] });
-    expect(result.properties['enabled']).toEqual({ type: 'boolean' });
-    expect(result.properties['tags']).toEqual({ type: 'array', items: { type: 'string' } });
+    expect(result.properties.status).toEqual({ type: 'string', enum: ['active', 'inactive'] });
+    expect(result.properties.enabled).toEqual({ type: 'boolean' });
+    expect(result.properties.tags).toEqual({ type: 'array', items: { type: 'string' } });
     expect(result.required).toEqual(['status', 'enabled']);
   });
 
@@ -39,7 +39,7 @@ describe('buildSchema', () => {
       score: s.integer().description('Quality score from 1-10').min(1).max(10).required(),
     }));
 
-    expect(result.properties['score']).toMatchObject({ description: 'Quality score from 1-10' });
+    expect(result.properties.score).toMatchObject({ description: 'Quality score from 1-10' });
   });
 
   it('omits required array when no required fields', () => {

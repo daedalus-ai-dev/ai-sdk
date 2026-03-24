@@ -1,6 +1,13 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { parsePartial, registerPartial, clearPartials, hasPartial, getPartial, listPartials } from './partial.js';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { parseAgent, yamlSchemaToJsonSchema } from './loader.js';
+import {
+  clearPartials,
+  getPartial,
+  hasPartial,
+  listPartials,
+  parsePartial,
+  registerPartial,
+} from './partial.js';
 import { clearAgents } from './registry.js';
 import { defineTool } from './tool.js';
 
@@ -13,13 +20,15 @@ beforeEach(() => {
 
 describe('parsePartial', () => {
   it('parses name and instructions from frontmatter + body', () => {
-    const partial = parsePartial(`
+    const partial = parsePartial(
+      `
 ---
 name: summarizer
 description: Condenses content
 ---
 Summarize the content in bullet points.
-    `.trim());
+    `.trim(),
+    );
 
     expect(partial.name).toBe('summarizer');
     expect(partial.description).toBe('Condenses content');
@@ -27,8 +36,7 @@ Summarize the content in bullet points.
   });
 
   it('throws if name is missing', () => {
-    expect(() => parsePartial(`---\ndescription: no name\n---\nbody`))
-      .toThrow('"name"');
+    expect(() => parsePartial(`---\ndescription: no name\n---\nbody`)).toThrow('"name"');
   });
 
   it('trims whitespace from instructions', () => {
@@ -68,7 +76,7 @@ describe('partial registry', () => {
 describe('yamlSchemaToJsonSchema', () => {
   it('converts string shorthand', () => {
     const schema = yamlSchemaToJsonSchema({ field: 'string' });
-    expect(schema.properties['field']).toEqual({ type: 'string' });
+    expect(schema.properties.field).toEqual({ type: 'string' });
     expect(schema.required).toBeUndefined();
   });
 
@@ -79,14 +87,17 @@ describe('yamlSchemaToJsonSchema', () => {
 
   it('converts array shorthand', () => {
     const schema = yamlSchemaToJsonSchema({ tags: 'string[]' });
-    expect(schema.properties['tags']).toEqual({ type: 'array', items: { type: 'string' } });
+    expect(schema.properties.tags).toEqual({ type: 'array', items: { type: 'string' } });
   });
 
   it('converts object form with required flag', () => {
     const schema = yamlSchemaToJsonSchema({
       summary: { type: 'string', required: true, description: 'A summary' },
     });
-    expect(schema.properties['summary']).toMatchObject({ type: 'string', description: 'A summary' });
+    expect(schema.properties.summary).toMatchObject({
+      type: 'string',
+      description: 'A summary',
+    });
     expect(schema.required).toContain('summary');
   });
 
@@ -94,7 +105,7 @@ describe('yamlSchemaToJsonSchema', () => {
     const schema = yamlSchemaToJsonSchema({
       items: { type: 'array', items: 'number' },
     });
-    expect(schema.properties['items']).toEqual({ type: 'array', items: { type: 'number' } });
+    expect(schema.properties.items).toEqual({ type: 'array', items: { type: 'number' } });
   });
 });
 
@@ -123,17 +134,16 @@ You are a helpful assistant.
       handle: async () => 'result',
     });
 
-    const runner = parseAgent(
-      `---\nname: agent\ntools:\n  - my-tool\n---\nYou use tools.`,
-      { tools: { 'my-tool': tool } },
-    );
+    const runner = parseAgent(`---\nname: agent\ntools:\n  - my-tool\n---\nYou use tools.`, {
+      tools: { 'my-tool': tool },
+    });
     expect(runner).toBeDefined();
   });
 
   it('throws if a required tool is missing from options', () => {
-    expect(() =>
-      parseAgent(`---\nname: agent\ntools:\n  - missing-tool\n---\nbody`),
-    ).toThrow('"missing-tool"');
+    expect(() => parseAgent(`---\nname: agent\ntools:\n  - missing-tool\n---\nbody`)).toThrow(
+      '"missing-tool"',
+    );
   });
 
   it('interpolates {{partial:name}} in instructions', () => {
@@ -146,9 +156,7 @@ You are a helpful assistant.
   });
 
   it('throws if a referenced partial is not registered', () => {
-    expect(() =>
-      parseAgent(`---\nname: agent\n---\n{{partial:unknown}}`),
-    ).toThrow('"unknown"');
+    expect(() => parseAgent(`---\nname: agent\n---\n{{partial:unknown}}`)).toThrow('"unknown"');
   });
 
   it('throws if name is missing', () => {

@@ -1,4 +1,4 @@
-import type { Message, MessageContent, AIProvider } from './types.js';
+import type { AIProvider, Message, MessageContent } from './types.js';
 
 // ─── Interface ────────────────────────────────────────────────────────────────
 

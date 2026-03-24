@@ -1,6 +1,6 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { vercelAI } from './vercel.js';
 import type { AIProvider } from '../types.js';
+import { vercelAI } from './vercel.js';
 
 export interface AnthropicOptions {
   /** Anthropic API key. Defaults to ANTHROPIC_API_KEY env var. */

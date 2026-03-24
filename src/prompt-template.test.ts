@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { promptTemplate, createPrompt } from './prompt-template.js';
+import { describe, expect, it } from 'vitest';
+import { createPrompt, promptTemplate } from './prompt-template.js';
 
 describe('promptTemplate', () => {
   it('interpolates variables into the template', () => {

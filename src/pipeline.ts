@@ -1,9 +1,6 @@
 // ─── Pipeline (prompt chaining) ───────────────────────────────────────────────
 
-export type PipelineStep<T> = (
-  payload: T,
-  next: (payload: T) => Promise<T>,
-) => Promise<T>;
+export type PipelineStep<T> = (payload: T, next: (payload: T) => Promise<T>) => Promise<T>;
 
 /**
  * A sequential pipeline for prompt chaining workflows.

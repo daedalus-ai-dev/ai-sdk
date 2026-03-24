@@ -1,6 +1,6 @@
 import { createXai } from '@ai-sdk/xai';
-import { vercelAI } from './vercel.js';
 import type { AIProvider } from '../types.js';
+import { vercelAI } from './vercel.js';
 
 export interface XAIOptions {
   /** xAI API key. Defaults to XAI_API_KEY env var. */

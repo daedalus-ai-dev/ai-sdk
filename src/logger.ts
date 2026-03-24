@@ -7,9 +7,13 @@ let _suppressAgentPrompt = false; // set by skill to avoid duplicate ⟶ lines
 const _cumulative: Usage = { inputTokens: 0, outputTokens: 0 };
 
 /** @internal — suppress agent-level prompt logging when inside a skill. */
-export function enterSkillContext(): void  { _suppressAgentPrompt = true; }
+export function enterSkillContext(): void {
+  _suppressAgentPrompt = true;
+}
 /** @internal */
-export function exitSkillContext(): void   { _suppressAgentPrompt = false; }
+export function exitSkillContext(): void {
+  _suppressAgentPrompt = false;
+}
 
 export function setDebug(enabled: boolean): void {
   _debug = enabled;
@@ -42,30 +46,30 @@ export function getTokenUsage(): Readonly<Usage> {
 
 // ─── ANSI colors (disabled when stderr is not a TTY or NO_COLOR is set) ──────
 
-const tty = Boolean(process.stderr.isTTY) && !process.env['NO_COLOR'];
+const tty = Boolean(process.stderr.isTTY) && !process.env.NO_COLOR;
 const esc = (code: string) => (tty ? `\x1b[${code}m` : '');
 
-const R  = esc('0');   // reset
-const b  = esc('1');   // bold
-const d  = esc('2');   // dim
-const BL = esc('34');  // blue
-const CY = esc('36');  // cyan
-const GR = esc('32');  // green
-const YE = esc('33');  // yellow
-const RE = esc('31');  // red
-const MA = esc('35');  // magenta
-const GY = esc('90');  // gray
+const R = esc('0'); // reset
+const b = esc('1'); // bold
+const d = esc('2'); // dim
+const BL = esc('34'); // blue
+const CY = esc('36'); // cyan
+const GR = esc('32'); // green
+const YE = esc('33'); // yellow
+const RE = esc('31'); // red
+const MA = esc('35'); // magenta
+const GY = esc('90'); // gray
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 function out(line: string): void {
-  process.stderr.write(line + '\n');
+  process.stderr.write(`${line}\n`);
 }
 
 /** Collapse newlines and truncate long strings for single-line display. */
 function trunc(s: string, max = 120): string {
   const flat = s.replace(/\r?\n/g, '↵ ').replace(/\s+/g, ' ').trim();
-  return flat.length <= max ? flat : flat.slice(0, max) + `${GY}…${R}`;
+  return flat.length <= max ? flat : `${flat.slice(0, max)}${GY}…${R}`;
 }
 
 function fmtMs(ms: number): string {

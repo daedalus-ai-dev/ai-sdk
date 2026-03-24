@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { connectMcp } from './client.js';
 
 // ─── Mock @modelcontextprotocol/sdk ───────────────────────────────────────────
@@ -72,15 +72,15 @@ describe('connectMcp() — stdio', () => {
     const { tools } = await connectMcp({ type: 'stdio', command: 'npx' });
     const [tool] = tools;
 
-    expect(tool!.name()).toBe('calculator');
-    expect(tool!.description()).toBe('Adds two numbers');
+    expect(tool?.name()).toBe('calculator');
+    expect(tool?.description()).toBe('Adds two numbers');
   });
 
   it('uses empty string when description is missing', async () => {
     mockListTools.mockResolvedValue({ tools: [NO_DESCRIPTION_TOOL] });
     const { tools } = await connectMcp({ type: 'stdio', command: 'npx' });
 
-    expect(tools[0]!.description()).toBe('');
+    expect(tools[0]?.description()).toBe('');
   });
 
   it('passes the raw MCP inputSchema through to toolToDefinition', async () => {
@@ -89,7 +89,9 @@ describe('connectMcp() — stdio', () => {
 
     // The RAW_INPUT_SCHEMA symbol should be present
     const { RAW_INPUT_SCHEMA } = await import('../tool.js');
-    expect((tool as unknown as Record<symbol, unknown>)[RAW_INPUT_SCHEMA]).toEqual(CALCULATOR_TOOL.inputSchema);
+    expect((tool as unknown as Record<symbol, unknown>)[RAW_INPUT_SCHEMA]).toEqual(
+      CALCULATOR_TOOL.inputSchema,
+    );
   });
 
   it('calls the MCP server when handle() is invoked', async () => {
@@ -98,7 +100,7 @@ describe('connectMcp() — stdio', () => {
     });
 
     const { tools } = await connectMcp({ type: 'stdio', command: 'npx' });
-    const result = await tools[0]!.handle({ a: 3, b: 4 });
+    const result = await tools[0]?.handle({ a: 3, b: 4 });
 
     expect(mockCallTool).toHaveBeenCalledWith({ name: 'calculator', arguments: { a: 3, b: 4 } });
     expect(result).toBe('7');
@@ -113,7 +115,7 @@ describe('connectMcp() — stdio', () => {
     });
 
     const { tools } = await connectMcp({ type: 'stdio', command: 'npx' });
-    const result = await tools[0]!.handle({});
+    const result = await tools[0]?.handle({});
 
     expect(result).toBe('line 1\nline 2');
   });
@@ -123,7 +125,7 @@ describe('connectMcp() — stdio', () => {
     mockCallTool.mockResolvedValue({ content: [imageBlock] });
 
     const { tools } = await connectMcp({ type: 'stdio', command: 'npx' });
-    const result = await tools[0]!.handle({});
+    const result = await tools[0]?.handle({});
 
     expect(result).toBe(JSON.stringify(imageBlock));
   });
@@ -136,7 +138,9 @@ describe('connectMcp() — HTTP', () => {
   });
 
   it('connects via streamable HTTP by default', async () => {
-    const { StreamableHTTPClientTransport } = await import('@modelcontextprotocol/sdk/client/streamableHttp.js');
+    const { StreamableHTTPClientTransport } = await import(
+      '@modelcontextprotocol/sdk/client/streamableHttp.js'
+    );
 
     await connectMcp({ type: 'http', url: 'https://example.com/mcp' });
 
@@ -151,14 +155,13 @@ describe('connectMcp() — HTTP', () => {
 
     await connectMcp({ type: 'http', url: 'https://example.com/sse', transport: 'sse' });
 
-    expect(SSEClientTransport).toHaveBeenCalledWith(
-      new URL('https://example.com/sse'),
-      {},
-    );
+    expect(SSEClientTransport).toHaveBeenCalledWith(new URL('https://example.com/sse'), {});
   });
 
   it('passes custom headers to the transport', async () => {
-    const { StreamableHTTPClientTransport } = await import('@modelcontextprotocol/sdk/client/streamableHttp.js');
+    const { StreamableHTTPClientTransport } = await import(
+      '@modelcontextprotocol/sdk/client/streamableHttp.js'
+    );
 
     await connectMcp({
       type: 'http',
@@ -166,10 +169,9 @@ describe('connectMcp() — HTTP', () => {
       headers: { Authorization: 'Bearer token' },
     });
 
-    expect(StreamableHTTPClientTransport).toHaveBeenCalledWith(
-      new URL('https://example.com/mcp'),
-      { requestInit: { headers: { Authorization: 'Bearer token' } } },
-    );
+    expect(StreamableHTTPClientTransport).toHaveBeenCalledWith(new URL('https://example.com/mcp'), {
+      requestInit: { headers: { Authorization: 'Bearer token' } },
+    });
   });
 });
 

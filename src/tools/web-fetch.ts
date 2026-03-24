@@ -16,14 +16,12 @@ export class WebFetch implements Tool {
 
   schema(): Record<string, PropertyBuilder> {
     return {
-      url: new StringPropertyBuilder()
-        .description('The URL to fetch')
-        .required(),
+      url: new StringPropertyBuilder().description('The URL to fetch').required(),
     };
   }
 
   async handle(input: Record<string, unknown>): Promise<string> {
-    const url = input['url'];
+    const url = input.url;
     if (typeof url !== 'string') throw new Error('url must be a string');
 
     const res = await fetch(url, {
@@ -32,6 +30,6 @@ export class WebFetch implements Tool {
 
     const text = await res.text();
     // Truncate to avoid overwhelming the context window
-    return text.length > 10_000 ? text.slice(0, 10_000) + '\n… [truncated]' : text;
+    return text.length > 10_000 ? `${text.slice(0, 10_000)}\n… [truncated]` : text;
   }
 }

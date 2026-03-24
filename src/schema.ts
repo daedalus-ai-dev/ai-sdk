@@ -1,11 +1,11 @@
-import type { SchemaFn, JsonSchemaObject, JsonSchemaProperty, SchemaBuilder } from './types.js';
+import type { JsonSchemaObject, JsonSchemaProperty, SchemaBuilder, SchemaFn } from './types.js';
 import {
-  StringPropertyBuilder,
-  NumberPropertyBuilder,
-  IntegerPropertyBuilder,
-  BooleanPropertyBuilder,
   ArrayPropertyBuilder,
+  BooleanPropertyBuilder,
   EnumPropertyBuilder,
+  IntegerPropertyBuilder,
+  NumberPropertyBuilder,
+  StringPropertyBuilder,
 } from './types.js';
 
 export const schema: SchemaBuilder = {

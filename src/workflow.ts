@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import matter from 'gray-matter';
-import type { SkillRunner } from './skill.js';
 import * as log from './logger.js';
+import type { SkillRunner } from './skill.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,7 +28,7 @@ export interface WorkflowRunner<TIn = unknown, TOut = unknown> {
 
 // ─── Internal stage representation ────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: third-party type boundary
 type AnyStage = ParallelStage<any, any, any> | SerialStage<any, any>;
 
 interface ParallelStage<TIn, TStepOut, TOut> {
@@ -83,10 +83,7 @@ export class WorkflowBuilder<TInitial, TCurrent> {
    * The step receives the output of the previous stage and produces `TOut`.
    */
   step<TOut>(step: WorkflowStep<TCurrent, TOut>): WorkflowBuilder<TInitial, TOut> {
-    return new WorkflowBuilder<TInitial, TOut>([
-      ...this._stages,
-      { kind: 'serial', step },
-    ]);
+    return new WorkflowBuilder<TInitial, TOut>([...this._stages, { kind: 'serial', step }]);
   }
 
   /** Compile the builder into an executable runner. */
@@ -222,15 +219,15 @@ function resolveStep(name: string, registry: WorkflowRegistry): WorkflowStep<unk
 export function parseWorkflow(content: string, registry: WorkflowRegistry): WorkflowRunner {
   const { data } = matter(content);
 
-  const name = data['name'] as string | undefined;
+  const name = data.name as string | undefined;
   if (!name) throw new Error('Workflow markdown must have a "name" field in frontmatter.');
 
-  const rawStages = data['stages'] as RawStage[] | undefined;
+  const rawStages = data.stages as RawStage[] | undefined;
   if (!rawStages || !Array.isArray(rawStages) || rawStages.length === 0) {
     throw new Error(`Workflow "${name}" must define at least one stage in frontmatter.`);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: third-party type boundary
   let builder: WorkflowBuilder<any, any> = WorkflowBuilder.create<unknown>();
 
   for (const raw of rawStages) {

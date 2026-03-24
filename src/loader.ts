@@ -1,10 +1,10 @@
-import { readFile, readdir } from 'node:fs/promises';
-import { join, extname } from 'node:path';
+import { readdir, readFile } from 'node:fs/promises';
+import { extname, join } from 'node:path';
 import matter from 'gray-matter';
-import { agent } from './agent.js';
 import type { AgentConfig } from './agent.js';
-import { registerAgent } from './registry.js';
+import { agent } from './agent.js';
 import { getPartial, hasPartial } from './partial.js';
+import { registerAgent } from './registry.js';
 import type { Tool } from './tool.js';
 import type { JsonSchemaObject, JsonSchemaProperty } from './types.js';
 
@@ -13,16 +13,20 @@ import type { JsonSchemaObject, JsonSchemaProperty } from './types.js';
 type SimpleType = 'string' | 'number' | 'integer' | 'boolean' | 'array' | 'object';
 
 function resolveItemType(items: unknown): JsonSchemaProperty {
-  if (typeof items === 'string') return { type: items as SimpleType } as unknown as JsonSchemaProperty;
+  if (typeof items === 'string')
+    return { type: items as SimpleType } as unknown as JsonSchemaProperty;
   if (typeof items === 'object' && items !== null)
     return buildProperty(items as Record<string, unknown>).prop;
   return { type: 'string' } as JsonSchemaProperty;
 }
 
-function buildProperty(obj: Record<string, unknown>): { prop: JsonSchemaProperty; required: boolean } {
+function buildProperty(obj: Record<string, unknown>): {
+  prop: JsonSchemaProperty;
+  required: boolean;
+} {
   const { required, items, ...rest } = obj;
   const prop: Record<string, unknown> = { ...rest };
-  if (items !== undefined) prop['items'] = resolveItemType(items);
+  if (items !== undefined) prop.items = resolveItemType(items);
   return { prop: prop as unknown as JsonSchemaProperty, required: required === true };
 }
 
@@ -106,12 +110,12 @@ export interface LoadAgentOptions {
 function parseAgentConfig(content: string, options?: LoadAgentOptions): AgentConfig {
   const { data, content: body } = matter(content);
 
-  const name = data['name'] as string | undefined;
+  const name = data.name as string | undefined;
   if (!name) throw new Error('Agent markdown must have a "name" field in frontmatter.');
 
   const instructions = resolvePartialInterpolations(body.trim());
 
-  const toolNames: string[] = Array.isArray(data['tools']) ? (data['tools'] as string[]) : [];
+  const toolNames: string[] = Array.isArray(data.tools) ? (data.tools as string[]) : [];
   const resolvedTools = toolNames.map((toolName) => {
     const tool = options?.tools?.[toolName];
     if (!tool) {
@@ -123,17 +127,17 @@ function parseAgentConfig(content: string, options?: LoadAgentOptions): AgentCon
   });
 
   const schemaInput =
-    data['schema'] && typeof data['schema'] === 'object'
-      ? yamlSchemaToJsonSchema(data['schema'] as Record<string, unknown>)
+    data.schema && typeof data.schema === 'object'
+      ? yamlSchemaToJsonSchema(data.schema as Record<string, unknown>)
       : undefined;
 
   return {
     instructions,
     ...(resolvedTools.length > 0 ? { tools: resolvedTools } : {}),
-    ...(data['model'] ? { model: data['model'] as string } : {}),
-    ...(data['maxIterations'] ? { maxIterations: data['maxIterations'] as number } : {}),
-    ...(data['temperature'] !== undefined ? { temperature: data['temperature'] as number } : {}),
-    ...(data['maxTokens'] ? { maxTokens: data['maxTokens'] as number } : {}),
+    ...(data.model ? { model: data.model as string } : {}),
+    ...(data.maxIterations ? { maxIterations: data.maxIterations as number } : {}),
+    ...(data.temperature !== undefined ? { temperature: data.temperature as number } : {}),
+    ...(data.maxTokens ? { maxTokens: data.maxTokens as number } : {}),
     ...(schemaInput ? { schema: schemaInput } : {}),
   };
 }
@@ -152,10 +156,7 @@ function parseAgentConfig(content: string, options?: LoadAgentOptions): AgentCon
  * You are a research assistant. Always cite your sources.
  * `, { tools: { 'web-fetch': webFetch } });
  */
-export function parseAgent(
-  content: string,
-  options?: LoadAgentOptions,
-): ReturnType<typeof agent> {
+export function parseAgent(content: string, options?: LoadAgentOptions): ReturnType<typeof agent> {
   return agent(parseAgentConfig(content, options));
 }
 
@@ -186,7 +187,7 @@ export async function loadAgentsFrom(dir: string, options?: LoadAgentOptions): P
     if (extname(entry) !== '.md') continue;
     const content = await readFile(join(dir, entry), 'utf-8');
     const config = parseAgentConfig(content, options);
-    const name = (matter(content).data['name'] as string | undefined) ?? entry;
+    const name = (matter(content).data.name as string | undefined) ?? entry;
     registerAgent(name, config);
   }
 }

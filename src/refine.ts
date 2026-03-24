@@ -24,10 +24,7 @@ export interface RefineConfig<TState, TOutput> {
    *
    * Return `{ done: true, output }` to stop, or `{ done: false }` to continue.
    */
-  until: (
-    current: TState,
-    previous: TState,
-  ) => { done: true; output: TOutput } | { done: false };
+  until: (current: TState, previous: TState) => { done: true; output: TOutput } | { done: false };
   /**
    * Hard ceiling on the number of iterations.
    * Throws `RefineLimitError` if exceeded.

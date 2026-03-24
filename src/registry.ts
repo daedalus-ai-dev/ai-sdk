@@ -1,7 +1,7 @@
-import { agent } from './agent.js';
-import { defineTool } from './tool.js';
 import type { AgentConfig } from './agent.js';
+import { agent } from './agent.js';
 import { InterruptError, isInterrupted } from './checkpoint.js';
+import { defineTool } from './tool.js';
 
 // ─── Internal store ───────────────────────────────────────────────────────────
 
@@ -32,9 +32,7 @@ export function registerAgent(name: string, config: AgentConfig): void {
 export function getAgent(name: string): ReturnType<typeof agent> {
   const config = store.get(name);
   if (!config) {
-    throw new Error(
-      `Agent "${name}" not registered. Call registerAgent("${name}", config) first.`,
-    );
+    throw new Error(`Agent "${name}" not registered. Call registerAgent("${name}", config) first.`);
   }
   return agent(config);
 }

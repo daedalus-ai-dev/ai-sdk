@@ -1,6 +1,6 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { vercelAI } from './vercel.js';
 import type { AIProvider } from '../types.js';
+import { vercelAI } from './vercel.js';
 
 export interface GoogleOptions {
   /** Google AI API key. Defaults to GOOGLE_GENERATIVE_AI_API_KEY env var. */
